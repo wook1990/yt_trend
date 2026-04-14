@@ -1,0 +1,1327 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>YT Trending</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <style>
+    [x-cloak]{display:none}
+    *{-webkit-tap-highlight-color:transparent}
+    body{overscroll-behavior:none}
+    .hide-scrollbar::-webkit-scrollbar{display:none}
+    .hide-scrollbar{-ms-overflow-style:none;scrollbar-width:none}
+    .thin-scroll::-webkit-scrollbar{width:3px;height:3px}
+    .thin-scroll::-webkit-scrollbar-thumb{background:#374151;border-radius:2px}
+    .tab-active{position:relative}
+    .tab-active::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:2px;border-radius:2px}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+    .fade-in{animation:fadeIn .15s ease-out}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .spin{animation:spin 1s linear infinite}
+  </style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen" x-data="app()" x-init="init()">
+
+<!-- ── 헤더 ──────────────────────────────────────────────────── -->
+<header class="sticky top-0 z-40 bg-gray-950/95 backdrop-blur border-b border-gray-800/60">
+  <!-- 상단 바 -->
+  <div class="flex items-center gap-2 px-3 py-2.5">
+    <div class="flex items-center gap-1.5 mr-auto">
+      <span class="text-base">📈</span>
+      <span class="font-bold text-sm text-white">YT Trending</span>
+      <span class="text-[10px] bg-red-600 text-white px-1.5 py-px rounded font-medium">LIVE</span>
+    </div>
+
+    <!-- 국가 -->
+    <select x-model="region" @change="load()"
+      class="bg-gray-800 text-xs border border-gray-700 rounded-lg px-2 py-1.5 text-gray-200 focus:outline-none focus:border-blue-500">
+      <option value="KR">🇰🇷 KR</option>
+      <option value="US">🇺🇸 US</option>
+      <option value="JP">🇯🇵 JP</option>
+    </select>
+
+    <!-- 기간 -->
+    <div class="flex rounded-lg overflow-hidden border border-gray-700 text-xs">
+      <template x-for="p in periods">
+        <button @click="period=p.key; load()"
+          :class="period===p.key ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400'"
+          class="px-2.5 py-1.5 transition" x-text="p.label"></button>
+      </template>
+    </div>
+
+    <!-- 날짜 -->
+    <input type="date" x-model="selectedDate" @change="load()"
+      class="bg-gray-800 text-xs border border-gray-700 rounded-lg px-2 py-1.5 text-gray-300 focus:outline-none focus:border-blue-500 w-32" />
+
+    <!-- 수집 -->
+    <button @click="collect()" :disabled="collecting"
+      class="bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:opacity-40 text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 transition font-medium">
+      <span x-show="collecting" class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full spin"></span>
+      <span x-text="collecting ? '수집중' : '⬇ 수집'"></span>
+    </button>
+
+    <!-- 사용자 -->
+    <div class="flex items-center gap-1.5">
+      <span class="text-[10px] text-gray-500 hidden sm:block" x-text="currentUser?.username"></span>
+      <button @click="logout()" title="로그아웃"
+        class="text-gray-500 hover:text-red-400 transition text-base leading-none">⏏</button>
+    </div>
+  </div>
+
+  <!-- 필터 바 -->
+  <div class="flex items-center gap-2 px-3 pb-2">
+    <!-- 엔터 제외 토글 -->
+    <button @click="excludeMusic=!excludeMusic; load()"
+      :class="excludeMusic ? 'bg-red-950 border-red-800/60 text-red-400' : 'bg-gray-800 border-gray-700 text-gray-500'"
+      class="border text-xs px-2.5 py-1 rounded-full transition shrink-0">
+      <span x-text="excludeMusic ? '🚫 엔터제외' : '전체'"></span>
+    </button>
+
+    <!-- 숏폼/롱폼 토글 -->
+    <div class="flex rounded-full overflow-hidden border border-gray-700 text-[10px] shrink-0">
+      <button @click="videoType='all'; load()"
+        :class="videoType==='all' ? 'bg-gray-600 text-white' : 'bg-gray-800 text-gray-500'"
+        class="px-2 py-1 transition">전체</button>
+      <button @click="videoType='short'; load()"
+        :class="videoType==='short' ? 'bg-purple-700 text-white' : 'bg-gray-800 text-gray-500'"
+        class="px-2 py-1 transition">🩳 쇼츠</button>
+      <button @click="videoType='long'; load()"
+        :class="videoType==='long' ? 'bg-blue-700 text-white' : 'bg-gray-800 text-gray-500'"
+        class="px-2 py-1 transition">🎬 롱폼</button>
+    </div>
+
+    <!-- 카테고리 태그 (가로 스크롤) -->
+    <div class="flex gap-1.5 overflow-x-auto hide-scrollbar flex-1">
+      <button @click="selectedCategory=0; load()"
+        :class="selectedCategory===0 ? 'bg-blue-600 text-white border-blue-500' : 'bg-gray-800/60 text-gray-400 border-gray-700'"
+        class="border text-xs px-2.5 py-1 rounded-full shrink-0 transition">전체</button>
+      <template x-for="c in availableCategories" :key="c.id">
+        <button @click="selectedCategory=c.id; load()"
+          :class="selectedCategory===c.id ? 'bg-blue-600 text-white border-blue-500' : 'bg-gray-800/60 text-gray-400 border-gray-700'"
+          class="border text-xs px-2.5 py-1 rounded-full shrink-0 transition" x-text="c.name"></button>
+      </template>
+    </div>
+  </div>
+
+  <!-- 탭 네비 -->
+  <div class="flex overflow-x-auto hide-scrollbar border-t border-gray-800/60 text-xs">
+    <template x-for="t in tabs" :key="t.key">
+      <button @click="switchTab(t.key)"
+        :class="activeTab===t.key
+          ? 'text-white border-b-2 border-blue-500 bg-gray-900/50'
+          : 'text-gray-500 hover:text-gray-300'"
+        class="flex items-center gap-1 px-3.5 py-2.5 shrink-0 transition font-medium">
+        <span x-text="t.icon"></span>
+        <span x-text="t.label"></span>
+      </button>
+    </template>
+  </div>
+</header>
+
+<!-- ── 통계 카드 바 ───────────────────────────────────────────── -->
+<div class="flex gap-2 px-3 py-2.5 overflow-x-auto hide-scrollbar">
+  <template x-for="c in summaryCards">
+    <div class="bg-gray-900 border border-gray-800/60 rounded-xl px-3 py-2 shrink-0 min-w-[100px]">
+      <div class="text-[10px] text-gray-500 mb-0.5" x-text="c.label"></div>
+      <div class="text-base font-bold leading-tight" :class="c.color" x-text="c.value"></div>
+      <div class="text-[10px] text-gray-600 mt-0.5" x-text="c.sub"></div>
+    </div>
+  </template>
+</div>
+
+<!-- ── 메인 콘텐츠 ─────────────────────────────────────────────── -->
+<main class="px-3 pb-24">
+
+  <!-- ① 급상승 목록 -->
+  <div x-show="activeTab==='trending'" class="fade-in">
+    <!-- 검색 + 정렬 -->
+    <div class="flex gap-2 mb-2">
+      <div class="flex-1 relative">
+        <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 text-xs">🔍</span>
+        <input x-model="searchQuery" placeholder="제목·채널 검색"
+          class="w-full bg-gray-900 border border-gray-800 rounded-lg text-xs pl-7 pr-3 py-2 text-gray-200 placeholder-gray-600 focus:outline-none focus:border-blue-500" />
+      </div>
+      <select x-model="sortKey"
+        class="bg-gray-900 border border-gray-800 rounded-lg text-xs px-2 py-2 text-gray-300 focus:outline-none">
+        <option value="rank">순위</option>
+        <option value="view_count">조회수</option>
+        <option value="view_gain_1d">1일증가</option>
+        <option value="spike_score">스파이크</option>
+        <option value="viral_coefficient">바이럴</option>
+      </select>
+    </div>
+
+    <!-- 영상 리스트 -->
+    <div class="space-y-1">
+      <template x-for="v in filteredVideos" :key="v.video_id">
+        <div @click="openDetail(v)"
+          class="flex items-center gap-2.5 bg-gray-900 hover:bg-gray-800/80 active:bg-gray-800 border border-gray-800/60 rounded-xl p-2.5 cursor-pointer transition">
+          <!-- 순위 -->
+          <span class="text-xs font-bold w-5 text-center shrink-0"
+            :class="v.rank<=3?'text-yellow-400':v.rank<=10?'text-gray-300':'text-gray-600'" x-text="v.rank"></span>
+          <!-- 썸네일 (쇼츠는 세로형) -->
+          <div class="relative shrink-0">
+            <img :src="v.thumbnail"
+              :class="v.is_short ? 'w-8 h-[42px]' : 'w-16 h-[42px]'"
+              class="object-cover rounded-lg bg-gray-800" loading="lazy" />
+            <span x-show="v.is_short"
+              class="absolute bottom-0.5 left-0 right-0 text-center text-[8px] bg-purple-700/90 text-white rounded-b-lg leading-4">
+              Shorts
+            </span>
+          </div>
+          <!-- 정보 -->
+          <div class="flex-1 min-w-0">
+            <div class="flex items-start gap-1">
+              <div class="text-xs text-white font-medium leading-snug line-clamp-2 flex-1" x-text="v.title"></div>
+            </div>
+            <div x-show="v.title_ko" class="text-[10px] text-blue-300/70 line-clamp-1 mt-0.5" x-text="v.title_ko"></div>
+            <div class="flex items-center gap-1.5 text-[10px] text-gray-500 mt-0.5">
+              <span class="truncate max-w-[100px]" x-text="v.channel"></span>
+              <span x-show="v.category" class="bg-gray-800 px-1 rounded text-gray-600 shrink-0" x-text="v.category"></span>
+              <span x-show="period!=='day' && v.trending_days>1"
+                class="bg-blue-900/50 text-blue-400 px-1 rounded shrink-0"
+                x-text="v.trending_days+'일'"></span>
+            </div>
+          </div>
+          <!-- 지표 -->
+          <div class="text-right shrink-0 space-y-0.5">
+            <div class="text-xs font-semibold text-blue-300" x-text="fmt(v.view_count)"></div>
+            <div class="text-[10px]" :class="v.view_gain_1d>0?'text-green-400':'text-gray-600'"
+              x-text="v.view_gain_1d?'+'+fmt(v.view_gain_1d):'-'"></div>
+            <div x-show="(v.spike_score||0)>30"
+              class="text-[10px] bg-orange-900/50 text-orange-400 px-1 rounded text-center"
+              x-text="'🔥'+(v.spike_score||0).toFixed(0)"></div>
+          </div>
+        </div>
+      </template>
+      <div x-show="filteredVideos.length===0" class="text-center text-gray-600 text-sm py-16">
+        데이터 없음 — 수집 버튼을 눌러주세요
+      </div>
+    </div>
+  </div>
+
+  <!-- ② 스파이크 TOP -->
+  <div x-show="activeTab==='spikes'" x-cloak class="fade-in space-y-1">
+    <template x-for="(v,i) in spikes" :key="v.video_id">
+      <div @click="openDetail(v)"
+        class="flex items-center gap-2.5 bg-gray-900 hover:bg-gray-800/80 border border-gray-800/60 rounded-xl p-2.5 cursor-pointer transition">
+        <span class="text-sm font-bold w-6 text-center shrink-0"
+          :class="i===0?'text-yellow-400':i===1?'text-gray-300':i===2?'text-amber-600':'text-gray-600'" x-text="i+1"></span>
+        <img :src="v.thumbnail" class="w-16 h-[42px] object-cover rounded-lg shrink-0 bg-gray-800" loading="lazy" />
+        <div class="flex-1 min-w-0">
+          <div class="text-xs font-medium text-white line-clamp-2 leading-snug" x-text="v.title"></div>
+          <div class="text-[10px] text-gray-500 mt-0.5 truncate" x-text="v.channel"></div>
+          <div class="flex gap-1 mt-1 flex-wrap">
+            <template x-for="r in (v.spike_reasons||[]).slice(0,2)">
+              <span class="text-[10px] bg-gray-800 text-gray-400 px-1.5 py-px rounded-full" x-text="r.label"></span>
+            </template>
+          </div>
+        </div>
+        <div class="text-right shrink-0">
+          <div class="text-base font-bold text-orange-400" x-text="(v.spike_score||0).toFixed(0)"></div>
+          <div class="text-[10px] text-gray-600">pt</div>
+          <div class="text-[10px] text-blue-300 mt-0.5" x-text="fmt(v.view_count)"></div>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <!-- ③ 모방 가능 -->
+  <div x-show="activeTab==='copyable'" x-cloak class="fade-in">
+    <div class="flex items-center justify-between mb-2">
+      <p class="text-xs text-gray-500">소규모 채널 고조회수 — 따라하기 쉬운 포맷</p>
+      <select x-model="copyableMaxSubs" @change="loadCopyable()"
+        class="bg-gray-900 border border-gray-800 text-xs rounded-lg px-2 py-1.5 text-gray-300 focus:outline-none">
+        <option :value="10000">1만 이하</option>
+        <option :value="50000">5만 이하</option>
+        <option :value="100000">10만 이하</option>
+        <option :value="500000">50만 이하</option>
+      </select>
+    </div>
+    <div class="space-y-1">
+      <template x-for="(v,i) in copyableVideos" :key="v.video_id">
+        <div @click="openDetail(v)"
+          class="flex items-center gap-2.5 bg-gray-900 hover:bg-gray-800/80 border border-gray-800/60 rounded-xl p-2.5 cursor-pointer transition">
+          <span class="text-xs text-gray-600 w-5 text-right shrink-0" x-text="i+1"></span>
+          <img :src="v.thumbnail" class="w-16 h-[42px] object-cover rounded-lg shrink-0 bg-gray-800" loading="lazy" />
+          <div class="flex-1 min-w-0">
+            <div class="text-xs font-medium text-white line-clamp-2 leading-snug" x-text="v.title"></div>
+            <div class="text-[10px] text-gray-500 mt-0.5 truncate" x-text="v.channel"></div>
+          </div>
+          <div class="text-right shrink-0 space-y-0.5">
+            <div class="text-[10px] text-gray-400">구독 <span class="text-white font-medium" x-text="fmt(v.subscriber_count)"></span></div>
+            <div class="text-[10px] text-blue-300" x-text="fmt(v.view_count)"></div>
+            <div class="text-[10px] text-orange-400 font-bold" x-text="v.viral_coefficient?v.viral_coefficient.toFixed(1)+'x':'-'"></div>
+          </div>
+        </div>
+      </template>
+      <div x-show="copyableVideos.length===0" class="text-center text-gray-600 text-sm py-16">조건에 맞는 영상 없음</div>
+    </div>
+  </div>
+
+  <!-- ④ 키워드 트렌드 -->
+  <div x-show="activeTab==='keywords'" x-cloak class="fade-in">
+    <div class="text-xs text-gray-500 mb-3" x-text="`분석 영상 ${keywordsData.total_videos||0}개 · ${keywordsData.start||''} ~ ${keywordsData.end||''}`"></div>
+    <!-- 차트 -->
+    <div class="bg-gray-900 border border-gray-800/60 rounded-xl p-3 mb-3">
+      <canvas id="keywordChart" height="260"></canvas>
+    </div>
+    <!-- 태그 클라우드 -->
+    <div class="flex flex-wrap gap-1.5">
+      <template x-for="(kw,i) in (keywordsData.keywords||[]).slice(0,35)" :key="kw.keyword">
+        <button @click="searchQuery=kw.keyword; switchTab('trending')"
+          :class="i<5?'bg-blue-900/60 border-blue-700/60 text-blue-200 text-sm':
+                  i<15?'bg-gray-800 border-gray-700 text-gray-200 text-xs':
+                  'bg-gray-900 border-gray-800 text-gray-500 text-[11px]'"
+          class="border px-2.5 py-1 rounded-full transition active:scale-95">
+          <span x-text="kw.keyword"></span>
+          <span class="opacity-50 ml-0.5 text-[10px]" x-text="kw.count"></span>
+        </button>
+      </template>
+      <div x-show="!(keywordsData.keywords||[]).length" class="text-gray-600 text-sm py-8 w-full text-center">데이터 없음</div>
+    </div>
+  </div>
+
+  <!-- ⑤ 선행 감지 -->
+  <div x-show="activeTab==='signals'" x-cloak class="fade-in">
+    <!-- 수집 버튼 -->
+    <div class="flex items-center justify-between mb-3">
+      <p class="text-xs text-gray-500">해외에서 떴지만 한국엔 없는 영상</p>
+      <button @click="collectOverseas()" :disabled="collectingOverseas"
+        class="bg-yellow-700 hover:bg-yellow-600 disabled:opacity-40 text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 transition">
+        <span x-show="collectingOverseas" class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full spin"></span>
+        <span x-text="collectingOverseas?'수집중':'🌐 미·일 수집'"></span>
+      </button>
+    </div>
+    <!-- 데이터 없음 -->
+    <div x-show="!signalsData.available_regions||signalsData.available_regions.length===0"
+      class="text-center py-16 text-gray-600">
+      <div class="text-3xl mb-2">📡</div>
+      <div class="text-sm">"미·일 수집" 버튼으로 해외 trending을 먼저 수집해주세요</div>
+    </div>
+    <!-- 지역 탭 -->
+    <div x-show="signalsData.available_regions&&signalsData.available_regions.length>0">
+      <div class="flex gap-1 mb-2">
+        <template x-for="src in (signalsData.available_regions||[])">
+          <button @click="signalRegion=src"
+            :class="signalRegion===src?'bg-yellow-700 text-white border-yellow-600':'bg-gray-900 text-gray-400 border-gray-700'"
+            class="border text-xs px-3 py-1.5 rounded-lg transition">
+            <span x-text="src==='US'?'🇺🇸 미국':src==='JP'?'🇯🇵 일본':src"></span>
+            <span class="opacity-60 ml-0.5" x-text="'('+((signalsData.signals||{})[src]||[]).length+')'"></span>
+          </button>
+        </template>
+      </div>
+      <div class="space-y-1">
+        <template x-for="(v,i) in ((signalsData.signals||{})[signalRegion]||[])" :key="v.video_id">
+          <div @click="openDetail(v)"
+            class="flex items-center gap-2.5 bg-gray-900 hover:bg-gray-800/80 border border-gray-800/60 rounded-xl p-2.5 cursor-pointer transition">
+            <span class="text-xs text-gray-600 w-5 text-right shrink-0" x-text="i+1"></span>
+            <img :src="v.thumbnail" class="w-16 h-[42px] object-cover rounded-lg shrink-0 bg-gray-800" loading="lazy" />
+            <div class="flex-1 min-w-0">
+              <div class="text-xs font-medium text-white line-clamp-2 leading-snug" x-text="v.title"></div>
+              <div x-show="v.title_ko" class="text-[10px] text-blue-300/70 line-clamp-1 mt-0.5" x-text="'→ ' + v.title_ko"></div>
+              <div class="text-[10px] text-gray-500 mt-0.5 truncate" x-text="v.channel"></div>
+            </div>
+            <div class="text-right shrink-0">
+              <div class="text-xs font-bold text-orange-400" x-text="(v.spike_score||0).toFixed(0)"></div>
+              <div class="text-[10px] text-blue-300" x-text="fmt(v.view_count)"></div>
+            </div>
+          </div>
+        </template>
+        <div x-show="((signalsData.signals||{})[signalRegion]||[]).length===0"
+          class="text-center text-gray-600 text-sm py-8">해당 지역 데이터 없음</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑥ 기간 비교 -->
+  <div x-show="activeTab==='compare'" x-cloak class="fade-in">
+    <div class="text-xs text-gray-500 mb-2" x-text="`${compareData.start||''} ~ ${compareData.end||''} 자주 등장한 영상`"></div>
+    <div class="space-y-1">
+      <template x-for="(v,i) in (compareData.top_videos||[])" :key="i">
+        <div class="flex items-center gap-2.5 bg-gray-900 border border-gray-800/60 rounded-xl p-2.5">
+          <span class="text-xs font-bold text-gray-500 w-5 text-right shrink-0" x-text="i+1"></span>
+          <img :src="v.thumbnail" class="w-14 h-9 object-cover rounded-lg shrink-0 bg-gray-800" loading="lazy" />
+          <div class="flex-1 min-w-0">
+            <div class="text-xs text-white line-clamp-2 leading-snug" x-text="v.title"></div>
+            <div class="text-[10px] text-gray-500 mt-0.5" x-text="v.channel"></div>
+          </div>
+          <div class="text-right shrink-0 text-xs">
+            <div class="text-blue-300 font-medium" x-text="v.days+'일'"></div>
+            <div class="text-[10px] text-gray-500">최고 <span class="text-yellow-400" x-text="v.max_rank"></span>위</div>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <!-- ⑦ 심층분석 -->
+  <div x-show="activeTab==='topic'" x-cloak class="fade-in space-y-3">
+
+    <!-- 입력 패널 -->
+    <div class="bg-gray-900 border border-gray-800/60 rounded-xl p-3.5 space-y-3">
+      <div class="text-xs font-semibold text-gray-300">🎯 주제 심층 분석</div>
+      <p class="text-[10px] text-gray-500 leading-relaxed">분석하고 싶은 주제를 입력하면 YouTube 검색 결과를 바탕으로<br>Gemini가 경쟁 분석·제목 공식·콘텐츠 아이디어를 생성합니다.</p>
+
+      <!-- 주제 입력 -->
+      <div class="relative">
+        <input x-model="topicInput" @keydown.enter="analyzeTopic()"
+          placeholder="예: 파이썬 자동화 부업, 간헐적 단식, 스마트스토어 마케팅"
+          class="w-full bg-gray-800 border border-gray-700 rounded-xl text-xs px-3 py-2.5 text-gray-200 placeholder-gray-600 focus:outline-none focus:border-blue-500" />
+      </div>
+
+      <!-- 옵션 -->
+      <div class="flex gap-2">
+        <div class="flex items-center gap-1.5 text-[10px] text-gray-400">
+          <span>국가</span>
+          <select x-model="topicRegion" class="bg-gray-800 border border-gray-700 rounded-lg px-1.5 py-1 text-gray-300 text-[10px] focus:outline-none">
+            <option value="KR">🇰🇷 KR</option>
+            <option value="US">🇺🇸 US</option>
+            <option value="JP">🇯🇵 JP</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-1.5 text-[10px] text-gray-400">
+          <span>기간</span>
+          <select x-model.number="topicDays" class="bg-gray-800 border border-gray-700 rounded-lg px-1.5 py-1 text-gray-300 text-[10px] focus:outline-none">
+            <option value="7">7일</option>
+            <option value="30">30일</option>
+            <option value="90">90일</option>
+          </select>
+        </div>
+        <button @click="analyzeTopic()" :disabled="topicLoading || !topicInput.trim()"
+          class="ml-auto bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-xs px-4 py-1.5 rounded-xl font-medium flex items-center gap-1.5 transition">
+          <span x-show="topicLoading" class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full spin"></span>
+          <span x-text="topicLoading ? '분석 중...' : '🔍 분석 시작'"></span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 에러 -->
+    <div x-show="topicError" class="bg-red-900/40 border border-red-800/60 rounded-xl p-3 text-xs text-red-300" x-text="topicError"></div>
+
+    <!-- 분석 결과 -->
+    <template x-if="topicResult">
+      <div class="space-y-3">
+
+        <!-- 헤더 카드 -->
+        <div class="bg-gradient-to-br from-blue-950 to-gray-900 border border-blue-800/50 rounded-xl p-3.5">
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <div class="text-base font-bold text-white" x-text="'「' + topicResult.topic + '」'"></div>
+              <div class="text-[10px] text-gray-500 mt-0.5"
+                x-text="topicResult.video_count + '개 영상 분석 · ' + topicResult.region + ' · 최근 ' + topicDays + '일'"></div>
+            </div>
+            <div class="flex gap-1.5 shrink-0">
+              <!-- 트렌드 방향 뱃지 -->
+              <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+                :class="trendColor(topicResult.analysis?.trend_direction?.status)"
+                x-text="topicResult.analysis?.trend_direction?.status || '-'"></span>
+              <!-- 경쟁 강도 뱃지 -->
+              <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+                :class="competitionColor(topicResult.analysis?.competition_analysis?.level)"
+                x-text="topicResult.analysis?.competition_analysis?.level || '-'"></span>
+            </div>
+          </div>
+          <p class="text-[11px] text-gray-300 mt-2 leading-relaxed"
+            x-text="topicResult.analysis?.topic_overview"></p>
+        </div>
+
+        <!-- 섹션 탭 -->
+        <div class="flex gap-1 overflow-x-auto hide-scrollbar">
+          <template x-for="s in [
+            {key:'overview',  label:'📋 전략'},
+            {key:'titles',    label:'✏️ 제목공식'},
+            {key:'ideas',     label:'💡 아이디어'},
+            {key:'videos',    label:'🎬 검색영상'},
+          ]" :key="s.key">
+            <button @click="topicSection=s.key"
+              :class="topicSection===s.key ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400'"
+              class="text-[10px] px-3 py-1.5 rounded-full shrink-0 transition font-medium"
+              x-text="s.label"></button>
+          </template>
+        </div>
+
+        <!-- ── 전략 섹션 ── -->
+        <div x-show="topicSection==='overview'" class="space-y-2.5">
+          <!-- 시청자 페르소나 -->
+          <div class="bg-gray-900 border border-gray-800/60 rounded-xl p-3">
+            <div class="text-[10px] text-cyan-400 font-semibold mb-1.5">👥 시청자 페르소나</div>
+            <p class="text-xs text-gray-300 leading-relaxed" x-text="topicResult.analysis?.audience_persona"></p>
+          </div>
+          <!-- 경쟁 분석 -->
+          <div class="bg-gray-900 border border-gray-800/60 rounded-xl p-3">
+            <div class="text-[10px] text-red-400 font-semibold mb-1.5">⚔️ 경쟁 분석</div>
+            <p class="text-xs text-gray-300 leading-relaxed mb-2" x-text="topicResult.analysis?.competition_analysis?.detail"></p>
+            <div class="flex flex-wrap gap-1">
+              <template x-for="ch in (topicResult.analysis?.competition_analysis?.dominant_channels || [])" :key="ch">
+                <span class="text-[10px] bg-gray-800 text-gray-400 px-2 py-0.5 rounded-full" x-text="ch"></span>
+              </template>
+            </div>
+          </div>
+          <!-- 성공 포맷 -->
+          <div class="bg-gray-900 border border-gray-800/60 rounded-xl p-3">
+            <div class="text-[10px] text-yellow-400 font-semibold mb-2">🏆 성공하는 콘텐츠 포맷</div>
+            <div class="space-y-2">
+              <template x-for="(f,i) in (topicResult.analysis?.winning_formats || [])" :key="i">
+                <div class="border-l-2 border-yellow-700/60 pl-2.5">
+                  <div class="text-xs text-white font-medium" x-text="f.format"></div>
+                  <div class="text-[10px] text-gray-400 mt-0.5" x-text="f.why_works"></div>
+                  <div class="text-[10px] text-yellow-300/70 mt-0.5 italic" x-text="'예: ' + f.example_title"></div>
+                </div>
+              </template>
+            </div>
+          </div>
+          <!-- 콘텐츠 갭 (기회) -->
+          <div class="bg-gray-900 border border-gray-800/60 rounded-xl p-3">
+            <div class="text-[10px] text-green-400 font-semibold mb-2">🚀 아직 없는 기회 영역</div>
+            <div class="space-y-2">
+              <template x-for="(g,i) in (topicResult.analysis?.content_gaps || [])" :key="i">
+                <div class="flex gap-2">
+                  <span class="text-[10px] bg-green-900/40 text-green-400 px-1.5 py-0.5 rounded shrink-0 font-bold" x-text="i+1"></span>
+                  <div>
+                    <div class="text-xs text-white" x-text="g.gap"></div>
+                    <div class="text-[10px] text-gray-400 mt-0.5" x-text="g.opportunity"></div>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+          <!-- SEO 키워드 -->
+          <div class="bg-gray-900 border border-gray-800/60 rounded-xl p-3">
+            <div class="text-[10px] text-purple-400 font-semibold mb-2">🔑 필수 SEO 키워드</div>
+            <div class="flex flex-wrap gap-1.5">
+              <template x-for="kw in (topicResult.analysis?.seo_keywords || [])" :key="kw">
+                <span class="text-xs bg-purple-900/50 border border-purple-800/50 text-purple-300 px-2 py-0.5 rounded-full" x-text="kw"></span>
+              </template>
+            </div>
+          </div>
+          <!-- 크리에이터 전략 -->
+          <div class="bg-gradient-to-br from-gray-900 to-blue-950/40 border border-blue-800/30 rounded-xl p-3">
+            <div class="text-[10px] text-blue-400 font-semibold mb-1.5">🎯 크리에이터 전략 가이드</div>
+            <p class="text-xs text-gray-200 leading-relaxed" x-text="topicResult.analysis?.creator_strategy"></p>
+          </div>
+        </div>
+
+        <!-- ── 제목 공식 섹션 ── -->
+        <div x-show="topicSection==='titles'" class="space-y-2">
+          <template x-for="(f,i) in (topicResult.analysis?.title_formulas || [])" :key="i">
+            <div class="bg-gray-900 border border-gray-800/60 rounded-xl p-3.5">
+              <div class="flex items-start gap-2">
+                <span class="text-sm font-bold text-blue-400 shrink-0" x-text="i+1"></span>
+                <div class="flex-1">
+                  <div class="text-xs font-mono text-yellow-300 leading-snug" x-text="f.formula"></div>
+                  <div class="text-[10px] text-gray-500 mt-1" x-text="f.explanation"></div>
+                  <div class="mt-2 bg-gray-800/80 rounded-lg px-2.5 py-2 text-xs text-white leading-snug" x-text="f.sample"></div>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <!-- ── 콘텐츠 아이디어 섹션 ── -->
+        <div x-show="topicSection==='ideas'" class="space-y-2">
+          <template x-for="(idea,i) in (topicResult.analysis?.content_ideas || [])" :key="i">
+            <div class="bg-gray-900 border border-gray-800/60 rounded-xl p-3.5">
+              <div class="flex items-start gap-2.5 mb-2">
+                <span class="text-sm font-bold text-orange-400 shrink-0" x-text="i+1"></span>
+                <div class="flex-1">
+                  <div class="text-sm text-white font-semibold leading-snug" x-text="idea.title"></div>
+                  <span class="text-[10px] font-medium mt-1 inline-block" :class="difficultyColor(idea.difficulty)" x-text="'난이도: ' + idea.difficulty"></span>
+                </div>
+              </div>
+              <div class="space-y-1.5 ml-6">
+                <div class="bg-orange-900/20 border border-orange-800/30 rounded-lg px-2.5 py-2">
+                  <div class="text-[10px] text-orange-400 mb-0.5">🎬 오프닝 훅</div>
+                  <div class="text-xs text-gray-300 leading-snug italic" x-text="idea.hook"></div>
+                </div>
+                <div class="text-[10px] text-gray-400 leading-relaxed" x-text="idea.why_will_work"></div>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <!-- ── 검색된 영상 섹션 ── -->
+        <div x-show="topicSection==='videos'" class="space-y-1">
+          <div class="text-[10px] text-gray-500 mb-1.5"
+            x-text="'YouTube 검색 결과 · 조회수 순 · ' + topicResult.video_count + '개'"></div>
+          <template x-for="(v,i) in (topicResult.videos || [])" :key="v.video_id">
+            <a :href="v.url" target="_blank"
+              class="flex items-center gap-2.5 bg-gray-900 hover:bg-gray-800/80 border border-gray-800/60 rounded-xl p-2.5 cursor-pointer transition">
+              <span class="text-[10px] text-gray-600 w-5 text-right shrink-0" x-text="i+1"></span>
+              <div class="relative shrink-0">
+                <img :src="v.thumbnail"
+                  :class="v.is_short ? 'w-8 h-[42px]' : 'w-16 h-[42px]'"
+                  class="object-cover rounded-lg bg-gray-800" loading="lazy" />
+                <span x-show="v.is_short"
+                  class="absolute bottom-0.5 left-0 right-0 text-center text-[8px] bg-purple-700/90 text-white rounded-b-lg leading-4">Shorts</span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="text-xs text-white line-clamp-2 leading-snug" x-text="v.title"></div>
+                <div class="flex items-center gap-1.5 text-[10px] text-gray-500 mt-0.5">
+                  <span class="truncate max-w-[100px]" x-text="v.channel"></span>
+                  <span x-text="v.upload_date?.slice(0,10)"></span>
+                </div>
+              </div>
+              <div class="text-right shrink-0 text-[10px]">
+                <div class="text-blue-300 font-medium" x-text="fmt(v.view_count)"></div>
+                <div class="text-gray-600" x-text="fmt(v.like_count||0) + ' 좋아요'"></div>
+              </div>
+            </a>
+          </template>
+        </div>
+
+      </div>
+    </template>
+  </div>
+
+  <!-- ⑨ 브리프 -->
+  <div x-show="activeTab==='brief'" x-cloak class="fade-in space-y-3">
+    <!-- 헤더 액션 -->
+    <div class="flex items-center justify-between">
+      <div class="text-xs text-gray-500" x-show="briefData" x-text="'생성: ' + (briefData?.generated_at?.slice(0,16).replace('T',' ')||'')"></div>
+      <div x-show="!briefData && !briefLoading" class="text-xs text-gray-500">브리프를 불러오거나 생성하세요</div>
+      <div class="flex gap-2 ml-auto">
+        <button @click="loadBrief(false)"
+          class="text-[10px] px-2.5 py-1 bg-gray-800 text-gray-300 rounded-lg hover:bg-gray-700 transition"
+          x-text="briefLoading ? '로딩중...' : '📥 불러오기'"
+          :disabled="briefLoading"></button>
+        <button @click="loadBrief(true)"
+          class="text-[10px] px-2.5 py-1 bg-blue-900 text-blue-300 rounded-lg hover:bg-blue-800 transition"
+          :disabled="briefLoading">🔄 재생성</button>
+      </div>
+    </div>
+
+    <!-- 에러 -->
+    <div x-show="briefError" class="bg-red-900/40 border border-red-800/60 rounded-xl p-3 text-xs text-red-300" x-text="briefError"></div>
+
+    <!-- 로딩 -->
+    <div x-show="briefLoading && !briefData" class="text-center py-8 text-gray-500 text-sm">Gemini 분석 중...</div>
+
+    <!-- 메타 인사이트 -->
+    <div x-show="briefData?.meta_insight" class="bg-gradient-to-br from-blue-950 to-gray-900 border border-blue-800/50 rounded-xl p-3.5">
+      <div class="text-[10px] font-semibold text-blue-400 uppercase tracking-wider mb-1.5">오늘의 핵심 인사이트</div>
+      <div class="text-xs text-gray-200 leading-relaxed" x-text="briefData?.meta_insight"></div>
+    </div>
+
+    <!-- 클러스터 아코디언 -->
+    <template x-for="cluster in (briefData?.clusters || [])" :key="cluster.topic">
+      <div class="bg-gray-900 border border-gray-800/60 rounded-xl overflow-hidden">
+        <!-- 클러스터 헤더 -->
+        <button class="w-full flex items-center gap-2.5 p-3 text-left hover:bg-gray-800/50 transition"
+          @click="briefOpenCluster = briefOpenCluster===cluster.topic ? null : cluster.topic">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-medium text-white" x-text="cluster.topic"></span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
+                :class="saturationColor(cluster.saturation)"
+                x-show="cluster.saturation"
+                x-text="'포화: '+cluster.saturation"></span>
+            </div>
+            <div class="flex gap-3 mt-1 text-[10px] text-gray-500">
+              <span x-text="cluster.video_count+'개 영상'"></span>
+              <span x-text="'스파이크 '+cluster.avg_spike"></span>
+              <span x-text="(cluster.avg_views/10000).toFixed(0)+'만 평균'"></span>
+            </div>
+          </div>
+          <span class="text-gray-600 text-sm transition-transform duration-200"
+            :class="briefOpenCluster===cluster.topic ? 'rotate-180' : ''"
+            style="display:inline-block">▼</span>
+        </button>
+
+        <!-- 클러스터 상세 (아코디언) -->
+        <div x-show="briefOpenCluster===cluster.topic" class="border-t border-gray-800/60">
+          <!-- Gemini 인사이트 -->
+          <div x-show="cluster.why_trending || cluster.title_pattern || cluster.creator_opportunity" class="p-3 space-y-2 border-b border-gray-800/40">
+            <div x-show="cluster.why_trending">
+              <div class="text-[10px] text-yellow-500 font-semibold mb-0.5">🔥 왜 뜨고 있나</div>
+              <div class="text-xs text-gray-300 leading-relaxed" x-text="cluster.why_trending"></div>
+            </div>
+            <div x-show="cluster.title_pattern">
+              <div class="text-[10px] text-purple-400 font-semibold mb-0.5">✏️ 성공 제목 패턴</div>
+              <div class="text-xs text-gray-300 leading-relaxed font-mono" x-text="cluster.title_pattern"></div>
+            </div>
+            <div x-show="cluster.creator_opportunity">
+              <div class="text-[10px] text-green-400 font-semibold mb-0.5">🚀 제작 기회</div>
+              <div class="text-xs text-gray-300 leading-relaxed" x-text="cluster.creator_opportunity"></div>
+            </div>
+            <div x-show="cluster.top_keywords?.length" class="flex flex-wrap gap-1 pt-1">
+              <template x-for="kw in (cluster.top_keywords||[])" :key="kw">
+                <span class="text-[10px] px-1.5 py-0.5 bg-gray-800 text-gray-400 rounded-md" x-text="kw"></span>
+              </template>
+            </div>
+          </div>
+
+          <!-- 영상 목록 (top 20) -->
+          <div class="divide-y divide-gray-800/40">
+            <template x-for="(v,i) in (cluster.videos || [])" :key="v.video_id">
+              <div class="flex items-center gap-2.5 p-2.5 hover:bg-gray-800/30 cursor-pointer transition"
+                @click="detailVideo=v; analysisResult=null">
+                <span class="text-[10px] text-gray-600 w-5 text-right shrink-0" x-text="i+1"></span>
+                <img :src="v.thumbnail" class="w-14 h-9 object-cover rounded-lg shrink-0 bg-gray-800" loading="lazy" />
+                <div class="flex-1 min-w-0">
+                  <div class="text-xs text-white line-clamp-2 leading-snug" x-text="v.title"></div>
+                  <div x-show="v.title_ko" class="text-[10px] text-blue-300/70 mt-0.5 line-clamp-1" x-text="'→ '+v.title_ko"></div>
+                  <div class="text-[10px] text-gray-500 mt-0.5" x-text="v.channel"></div>
+                </div>
+                <div class="text-right shrink-0 text-[10px]">
+                  <div class="text-orange-400 font-medium" x-text="(v.spike_score||0).toFixed(0)+'pt'"></div>
+                  <div class="text-gray-600" x-text="((v.view_count||0)/10000).toFixed(0)+'만'"></div>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <!-- ⑩ 통계 차트 -->
+  <div x-show="activeTab==='stats'" x-cloak class="fade-in space-y-3">
+    <!-- 카테고리 도넛 -->
+    <div class="bg-gray-900 border border-gray-800/60 rounded-xl p-3">
+      <div class="text-xs font-medium text-gray-300 mb-2">카테고리 분포</div>
+      <canvas id="categoryChart" height="200"></canvas>
+      <div class="mt-2 space-y-1.5">
+        <template x-for="c in categories.slice(0,6)" :key="c.id">
+          <div class="flex items-center gap-2 text-xs">
+            <span class="text-gray-300 w-16 truncate" x-text="c.name"></span>
+            <div class="flex-1 h-1 bg-gray-800 rounded-full overflow-hidden">
+              <div class="h-full bg-blue-500 rounded-full" :style="`width:${Math.min(c.avg_engagement*10,100)}%`"></div>
+            </div>
+            <span class="text-gray-500 w-10 text-right" x-text="c.avg_engagement.toFixed(1)+'%'"></span>
+          </div>
+        </template>
+      </div>
+    </div>
+    <!-- 급등 원인 -->
+    <div class="bg-gray-900 border border-gray-800/60 rounded-xl p-3">
+      <div class="text-xs font-medium text-gray-300 mb-2">급등 원인 분포</div>
+      <canvas id="reasonChart" height="160"></canvas>
+    </div>
+    <!-- 상위 채널 -->
+    <div class="bg-gray-900 border border-gray-800/60 rounded-xl p-3">
+      <div class="text-xs font-medium text-gray-300 mb-2">채널 TOP 10</div>
+      <div class="space-y-2">
+        <template x-for="(ch,i) in topChannels" :key="i">
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] text-gray-600 w-4 text-right" x-text="i+1"></span>
+            <div class="flex-1">
+              <div class="flex justify-between text-xs mb-0.5">
+                <span class="text-gray-300 truncate" x-text="ch.name"></span>
+                <span class="text-gray-500 ml-1 shrink-0" x-text="ch.count+'개'"></span>
+              </div>
+              <div class="h-1 bg-gray-800 rounded-full overflow-hidden">
+                <div class="h-full bg-blue-600 rounded-full"
+                  :style="`width:${(ch.count/topChannels[0].count*100).toFixed(0)}%`"></div>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑪ 관리자 패널 -->
+  <div x-show="activeTab==='admin'" x-cloak class="fade-in space-y-3">
+
+    <!-- 알림 메시지 -->
+    <div x-show="adminMsg"
+      class="bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-xs leading-relaxed"
+      :class="adminMsg.startsWith('✅') ? 'text-green-300 border-green-800/60' : 'text-red-300 border-red-800/60'"
+      x-text="adminMsg"></div>
+
+    <!-- 서브탭 -->
+    <div class="flex gap-1">
+      <button @click="adminTab='requests'; loadAdminRequests()"
+        :class="adminTab==='requests' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400'"
+        class="text-xs px-3 py-1.5 rounded-full transition">📋 가입 요청</button>
+      <button @click="adminTab='users'; loadAdminUsers()"
+        :class="adminTab==='users' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400'"
+        class="text-xs px-3 py-1.5 rounded-full transition">👥 유저 관리</button>
+    </div>
+
+    <!-- 로딩 -->
+    <div x-show="adminLoading" class="text-center py-8 text-gray-500 text-xs">로딩 중...</div>
+
+    <!-- 가입 요청 목록 -->
+    <div x-show="adminTab==='requests' && !adminLoading" class="space-y-2">
+      <div x-show="adminRequests.length===0" class="text-center py-8 text-gray-600 text-sm">대기 중인 요청 없음</div>
+      <template x-for="req in adminRequests" :key="req.id">
+        <div class="bg-gray-900 border border-gray-800/60 rounded-xl p-3.5 space-y-2">
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <div class="text-sm font-semibold text-white" x-text="req.username"></div>
+              <div class="text-xs text-gray-400" x-text="req.email"></div>
+              <div class="text-[10px] text-gray-600 mt-0.5" x-text="req.requested_at.slice(0,16).replace('T',' ')"></div>
+            </div>
+            <span class="text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0"
+              :class="req.status==='pending' ? 'bg-yellow-900/50 text-yellow-400' : req.status==='approved' ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'"
+              x-text="req.status==='pending' ? '대기' : req.status==='approved' ? '승인' : '거절'"></span>
+          </div>
+          <div x-show="req.reason" class="bg-gray-800/50 rounded-lg px-2.5 py-2 text-xs text-gray-400 italic" x-text="req.reason"></div>
+          <div x-show="req.status==='pending'" class="flex gap-2">
+            <button @click="approveRequest(req.id)"
+              class="flex-1 bg-green-800 hover:bg-green-700 text-green-200 text-xs py-2 rounded-lg transition font-medium">✅ 승인</button>
+            <button @click="rejectRequest(req.id)"
+              class="flex-1 bg-red-900/60 hover:bg-red-800 text-red-300 text-xs py-2 rounded-lg transition font-medium">❌ 거절</button>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <!-- 유저 목록 -->
+    <div x-show="adminTab==='users' && !adminLoading" class="space-y-2">
+      <template x-for="u in adminUsers" :key="u.id">
+        <div class="bg-gray-900 border border-gray-800/60 rounded-xl p-3 flex items-center gap-3">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-medium text-white" x-text="u.username"></span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                :class="u.role==='admin' ? 'bg-purple-900/60 text-purple-300' : 'bg-gray-800 text-gray-400'"
+                x-text="u.role==='admin' ? '관리자' : '유저'"></span>
+              <span x-show="!u.is_active" class="text-[10px] bg-red-900/50 text-red-400 px-1.5 py-0.5 rounded">비활성</span>
+            </div>
+            <div class="text-[10px] text-gray-500 mt-0.5" x-text="u.email"></div>
+          </div>
+          <div x-show="u.role !== 'admin'" class="flex gap-1.5 shrink-0">
+            <button @click="toggleUser(u.id)"
+              :class="u.is_active ? 'bg-red-900/40 text-red-400 hover:bg-red-900' : 'bg-green-900/40 text-green-400 hover:bg-green-900'"
+              class="text-[10px] px-2 py-1.5 rounded-lg transition"
+              x-text="u.is_active ? '비활성화' : '활성화'"></button>
+            <button @click="resetPassword(u.id)"
+              class="text-[10px] px-2 py-1.5 bg-gray-800 text-gray-400 hover:bg-gray-700 rounded-lg transition">PW초기화</button>
+          </div>
+        </div>
+      </template>
+    </div>
+
+  </div>
+
+</main>
+
+<!-- ── 영상 상세 모달 ────────────────────────────────────────── -->
+<div x-show="detailVideo" x-cloak @click.self="closeDetail()"
+  class="fixed inset-0 z-50 bg-black/80 flex items-end md:items-center justify-center">
+  <div class="bg-gray-900 border border-gray-800 rounded-t-2xl md:rounded-2xl w-full md:max-w-lg max-h-[92vh] overflow-y-auto thin-scroll fade-in"
+    @click.stop>
+    <template x-if="detailVideo">
+      <div class="p-4">
+        <!-- 핸들 (모바일) -->
+        <div class="w-10 h-1 bg-gray-700 rounded-full mx-auto mb-3 md:hidden"></div>
+
+        <!-- 영상 헤더 -->
+        <div class="flex gap-3 mb-3">
+          <img :src="detailVideo.thumbnail" class="w-28 h-[70px] object-cover rounded-lg shrink-0 bg-gray-800" />
+          <div class="flex-1 min-w-0">
+            <a :href="detailVideo.url" target="_blank"
+              class="text-sm text-white font-medium leading-snug hover:text-blue-400 transition line-clamp-3"
+              x-text="detailVideo.title"></a>
+            <div x-show="detailVideo.title_ko"
+              class="text-xs text-blue-300/80 mt-0.5 leading-snug line-clamp-2"
+              x-text="'→ ' + detailVideo.title_ko"></div>
+            <div class="text-xs text-gray-500 mt-1 truncate" x-text="detailVideo.channel"></div>
+            <div class="text-[10px] text-gray-600 mt-0.5" x-text="detailVideo.category"></div>
+          </div>
+          <button @click="closeDetail()" class="text-gray-600 hover:text-white text-lg self-start shrink-0 -mt-1">✕</button>
+        </div>
+
+        <!-- 급등 원인 태그 -->
+        <div class="flex flex-wrap gap-1 mb-3">
+          <template x-for="r in (detailVideo.spike_reasons||[])">
+            <span class="text-xs bg-gray-800 text-gray-300 px-2 py-0.5 rounded-full border border-gray-700" x-text="r.label"></span>
+          </template>
+        </div>
+
+        <!-- 지표 그리드 -->
+        <div class="grid grid-cols-3 gap-1.5 mb-3">
+          <template x-for="m in detailMetrics(detailVideo)">
+            <div class="bg-gray-800/70 rounded-xl p-2.5 text-center">
+              <div class="text-[10px] text-gray-500 mb-0.5" x-text="m.label"></div>
+              <div class="text-xs font-bold" :class="m.color" x-text="m.value"></div>
+            </div>
+          </template>
+        </div>
+
+        <!-- 모방 포인트 -->
+        <div class="bg-gray-800/50 rounded-xl p-3 mb-3 text-xs">
+          <div class="text-[10px] text-green-400 font-medium mb-1.5">📋 모방 포인트</div>
+          <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-gray-300">
+            <div><span class="text-gray-500">제목 </span><span x-text="detailVideo.title.length+'자'"></span></div>
+            <div><span class="text-gray-500">길이 </span><span x-text="formatDuration(detailVideo.duration)"></span></div>
+            <div><span class="text-gray-500">업로드 </span><span x-text="detailVideo.publish_date?detailVideo.publish_date.split('T')[0]:'-'"></span></div>
+            <div><span class="text-gray-500">바이럴 </span><span class="text-orange-400" x-text="detailVideo.viral_coefficient?detailVideo.viral_coefficient.toFixed(1)+'x':'-'"></span></div>
+          </div>
+        </div>
+
+        <!-- AI 분석 버튼 -->
+        <div x-show="!analysisResult&&!analyzing">
+          <button @click="analyzeVideo(detailVideo.video_id)"
+            class="w-full bg-gradient-to-r from-violet-700 to-blue-700 hover:from-violet-600 hover:to-blue-600 active:opacity-90 text-white text-xs py-3 rounded-xl flex items-center justify-center gap-2 transition font-medium">
+            🤖 AI 분석 — 왜 떴는지 + 모방 전략
+          </button>
+        </div>
+
+        <!-- 분석 중 -->
+        <div x-show="analyzing" x-cloak class="text-center py-8">
+          <div class="w-8 h-8 border-2 border-violet-600/30 border-t-violet-500 rounded-full spin mx-auto mb-2"></div>
+          <div class="text-xs text-gray-500">AI 분석 중… 10-20초</div>
+        </div>
+
+        <!-- 분석 결과 -->
+        <div x-show="analysisResult&&!analyzing" x-cloak class="space-y-2">
+          <!-- 핵심 -->
+          <div class="bg-violet-950/50 border border-violet-800/40 rounded-xl p-3">
+            <div class="text-[10px] text-violet-400 mb-1">💡 핵심 가치</div>
+            <div class="text-sm text-white font-semibold" x-text="analysisResult.hook"></div>
+          </div>
+          <!-- 왜 떴나 -->
+          <div class="bg-gray-800/60 rounded-xl p-3">
+            <div class="text-[10px] text-orange-400 font-medium mb-1">🚀 왜 급상승했나</div>
+            <div class="text-xs text-gray-200 leading-relaxed" x-text="analysisResult.why_viral"></div>
+          </div>
+          <!-- 요약 -->
+          <div class="bg-gray-800/60 rounded-xl p-3">
+            <div class="text-[10px] text-blue-400 font-medium mb-1">📋 영상 요약</div>
+            <div class="text-xs text-gray-200 leading-relaxed" x-text="analysisResult.summary"></div>
+          </div>
+          <!-- 모방 가이드 -->
+          <div x-show="analysisResult.copy_guide" class="bg-gray-800/60 rounded-xl p-3">
+            <div class="text-[10px] text-green-400 font-medium mb-2">🎯 모방 가이드</div>
+            <div class="space-y-1.5 text-xs text-gray-300">
+              <div><span class="text-gray-500">제목 패턴 </span><span x-text="analysisResult.copy_guide?.title_pattern"></span></div>
+              <div><span class="text-gray-500">구조 </span><span x-text="analysisResult.copy_guide?.content_structure"></span></div>
+              <div><span class="text-gray-500">타겟 </span><span x-text="analysisResult.copy_guide?.target_audience"></span></div>
+              <div><span class="text-gray-500">시기 </span><span x-text="analysisResult.copy_guide?.optimal_timing"></span></div>
+              <div x-show="(analysisResult.copy_guide?.similar_topics||[]).length">
+                <span class="text-gray-500">연관 주제 </span>
+                <span class="text-green-300" x-text="(analysisResult.copy_guide?.similar_topics||[]).join(' · ')"></span>
+              </div>
+            </div>
+          </div>
+          <!-- 인사이트 -->
+          <div x-show="(analysisResult.key_insights||[]).length" class="bg-gray-800/60 rounded-xl p-3">
+            <div class="text-[10px] text-yellow-400 font-medium mb-1.5">⚡ 핵심 인사이트</div>
+            <ul class="space-y-1.5">
+              <template x-for="(ins,i) in (analysisResult.key_insights||[])">
+                <li class="flex gap-1.5 text-xs text-gray-200">
+                  <span class="text-yellow-600 shrink-0" x-text="(i+1)+'.'"></span>
+                  <span x-text="ins"></span>
+                </li>
+              </template>
+            </ul>
+          </div>
+          <!-- 팁 -->
+          <div x-show="(analysisResult.creator_tips||[]).length" class="bg-gray-800/60 rounded-xl p-3">
+            <div class="text-[10px] text-teal-400 font-medium mb-1.5">✅ 제작 시 필수 요소</div>
+            <ul class="space-y-1">
+              <template x-for="tip in (analysisResult.creator_tips||[])">
+                <li class="flex gap-1.5 text-xs text-gray-200">
+                  <span class="text-teal-600 shrink-0">·</span><span x-text="tip"></span>
+                </li>
+              </template>
+            </ul>
+          </div>
+          <!-- 주의 -->
+          <div x-show="analysisResult.caution" class="bg-red-950/40 border border-red-900/40 rounded-xl p-3">
+            <div class="text-[10px] text-red-400 font-medium mb-1">⚠️ 주의</div>
+            <div class="text-xs text-gray-300" x-text="analysisResult.caution"></div>
+          </div>
+          <!-- 오류 -->
+          <div x-show="analysisResult.error" class="bg-red-950/40 border border-red-800 rounded-xl p-3 text-xs text-red-300" x-text="analysisResult.error"></div>
+          <button @click="analysisResult=null" class="w-full text-[10px] text-gray-600 hover:text-gray-400 py-1 transition">닫기</button>
+        </div>
+
+      </div>
+    </template>
+  </div>
+</div>
+
+<script>
+function app() {
+  return {
+    region: 'KR', period: 'day',
+    selectedDate: new Date().toISOString().split('T')[0],
+    periods: [{key:'day',label:'일'},{key:'week',label:'주'},{key:'month',label:'월'}],
+    activeTab: 'trending',
+    tabs: [
+      {key:'brief',    icon:'💡', label:'브리프'},
+      {key:'topic',    icon:'🎯', label:'심층분석'},
+      {key:'trending', icon:'📊', label:'급상승'},
+      {key:'spikes',   icon:'🚀', label:'스파이크'},
+      {key:'copyable', icon:'📋', label:'모방가능'},
+      {key:'keywords', icon:'🔑', label:'키워드'},
+      {key:'signals',  icon:'🌍', label:'선행감지'},
+      {key:'compare',  icon:'📅', label:'비교'},
+      {key:'stats',    icon:'📈', label:'통계'},
+    ],
+    searchQuery: '', sortKey: 'rank',
+    excludeMusic: true, selectedCategory: 0, videoType: 'all',
+
+    videos: [], spikes: [], compareData: {}, categories: [],
+    availableCategories: [], summaryCards: [], topChannels: [],
+    shortCount: null, longCount: null,
+    detailVideo: null, collecting: false,
+
+    smallChBreakout: 0,
+    copyableVideos: [], copyableMaxSubs: 100000,
+    keywordsData: {},
+    signalsData: {}, signalRegion: 'US', collectingOverseas: false,
+    analysisResult: null, analyzing: false,
+    charts: {},
+    briefData: null, briefLoading: false, briefError: null, briefOpenCluster: null,
+    topicInput: '', topicRegion: 'KR', topicDays: 30,
+    topicResult: null, topicLoading: false, topicError: null,
+    topicSection: 'overview',
+
+    // 인증
+    currentUser: null,
+    // 관리자
+    adminTab: 'requests', adminRequests: [], adminUsers: [],
+    adminLoading: false, adminMsg: '',
+
+    async init() {
+      const token = localStorage.getItem('yt_token')
+      if (!token) { window.location.href = '/login'; return }
+      // 토큰 유효성 확인
+      const me = await this.authGet('/auth/me')
+      if (!me) { localStorage.clear(); window.location.href = '/login'; return }
+      this.currentUser = me
+      // 관리자면 탭 추가
+      if (me.role === 'admin') {
+        this.tabs.push({key:'admin', icon:'⚙️', label:'관리'})
+      }
+      await this.load()
+    },
+
+    async switchTab(key) {
+      this.activeTab = key
+      if (key === 'brief') this.loadBrief()
+      else if (key === 'copyable') this.loadCopyable()
+      else if (key === 'keywords') this.loadKeywords()
+      else if (key === 'signals') this.loadSignals()
+      else if (key === 'admin') this.loadAdminRequests()
+      else if (key === 'stats') this.$nextTick(() => { this.renderCategoryChart(); this.renderReasonChart() })
+    },
+
+    async load() {
+      const d = this.selectedDate, em = this.excludeMusic?'true':'false', cat = this.selectedCategory, vt = this.videoType
+      const [trending, spikes, compare, cats] = await Promise.all([
+        this.get(`/api/trending?region=${this.region}&date=${d}&period=${this.period}&exclude_music=${em}&category=${cat}&video_type=${vt}`),
+        this.get(`/api/trending/spikes?region=${this.region}&date=${d}&period=${this.period}&limit=20&exclude_music=${em}&video_type=${vt}`),
+        this.get(`/api/trending/compare?region=${this.region}&period=${this.period}&date=${d}&exclude_music=${em}&category=${cat}`),
+        this.get(`/api/trending/categories?region=${this.region}&period=day&date=${d}&exclude_music=${em}`),
+      ])
+      this.videos = trending?.videos || []
+      this.spikes = spikes?.spikes || []
+      this.compareData = compare || {}
+      this.categories = cats?.categories || []
+      this.smallChBreakout = trending?.small_ch_breakout || 0
+      this.shortCount = trending?.short_count ?? null
+      this.longCount  = trending?.long_count ?? null
+      this.availableCategories = this.categories.filter(c => c.count > 0)
+      this.buildSummary()
+      this.buildTopChannels()
+      if (this.activeTab === 'stats') this.$nextTick(() => { this.renderCategoryChart(); this.renderReasonChart() })
+    },
+
+    async loadCopyable() {
+      const d = this.selectedDate, em = this.excludeMusic?'true':'false'
+      const data = await this.get(`/api/trending/copyable?region=${this.region}&date=${d}&exclude_music=${em}&max_subscribers=${this.copyableMaxSubs}`)
+      this.copyableVideos = data?.videos || []
+    },
+
+    async loadKeywords() {
+      const d = this.selectedDate, em = this.excludeMusic?'true':'false'
+      const data = await this.get(`/api/trending/keywords?region=${this.region}&period=${this.period}&date=${d}&exclude_music=${em}&category=${this.selectedCategory}&limit=40`)
+      this.keywordsData = data || {}
+      setTimeout(() => this.renderKeywordChart(), 100)
+    },
+
+    async loadBrief(force = false) {
+      this.briefLoading = true; this.briefError = null
+      try {
+        const d = this.selectedDate
+        const url = force
+          ? `/api/brief/generate?region=${this.region}&date=${d}`
+          : `/api/brief?region=${this.region}&date=${d}`
+        const r = await fetch(url, force ? {method:'POST', headers: this.authHeaders()} : {headers: this.authHeaders()})
+        if (!r.ok) { const e = await r.json(); throw new Error(e.detail || r.statusText) }
+        this.briefData = await r.json()
+        this.briefOpenCluster = this.briefData?.clusters?.[0]?.topic || null
+      } catch(e) { this.briefError = e.message }
+      this.briefLoading = false
+    },
+
+    async analyzeTopic() {
+      const topic = this.topicInput.trim()
+      if (!topic) return
+      this.topicLoading = true; this.topicError = null; this.topicResult = null
+      try {
+        const r = await fetch('/api/topic/analyze', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json', ...this.authHeaders()},
+          body: JSON.stringify({topic, region: this.topicRegion, days: this.topicDays, limit: 30})
+        })
+        if (!r.ok) { const e = await r.json(); throw new Error(e.detail || r.statusText) }
+        this.topicResult = await r.json()
+        this.topicSection = 'overview'
+      } catch(e) { this.topicError = e.message }
+      this.topicLoading = false
+    },
+
+    trendColor(s) {
+      if (s === '급상승') return 'text-green-400 bg-green-900/40'
+      if (s === '하락')   return 'text-red-400 bg-red-900/40'
+      return 'text-yellow-400 bg-yellow-900/40'
+    },
+
+    competitionColor(s) {
+      if (s === '블루오션') return 'text-blue-400 bg-blue-900/40'
+      if (s === '레드오션') return 'text-red-400 bg-red-900/40'
+      return 'text-green-400 bg-green-900/40'
+    },
+
+    difficultyColor(s) {
+      if (s === '쉬움') return 'text-green-400'
+      if (s === '어려움') return 'text-red-400'
+      return 'text-yellow-400'
+    },
+
+    saturationColor(s) {
+      if (s === '낮음') return 'text-green-400'
+      if (s === '높음') return 'text-red-400'
+      return 'text-yellow-400'
+    },
+
+    async loadSignals() {
+      const d = this.selectedDate, em = this.excludeMusic?'true':'false'
+      const data = await this.get(`/api/trending/early-signals?base_region=KR&source_regions=US,JP&period=${this.period}&date=${d}&exclude_music=${em}`)
+      this.signalsData = data || {}
+      if (data?.available_regions?.length > 0) this.signalRegion = data.available_regions[0]
+    },
+
+    async collectOverseas() {
+      this.collectingOverseas = true
+      try {
+        const r = await fetch('/api/collect/overseas?regions=US,JP', {method:'POST', headers: this.authHeaders()})
+        const d = await r.json()
+        alert(`완료: US ${d.by_region?.US||0}개, JP ${d.by_region?.JP||0}개`)
+        await this.loadSignals()
+      } catch(e) { alert('실패: '+e.message) }
+      this.collectingOverseas = false
+    },
+
+    async analyzeVideo(videoId) {
+      this.analyzing = true; this.analysisResult = null
+      try {
+        const r = await fetch(`/api/analyze/${videoId}`, {headers: this.authHeaders()})
+        this.analysisResult = await r.json()
+      } catch(e) { this.analysisResult = {error:'분석 실패: '+e.message} }
+      this.analyzing = false
+    },
+
+    get filteredVideos() {
+      let list = [...this.videos]
+      if (this.searchQuery) {
+        const q = this.searchQuery.toLowerCase()
+        list = list.filter(v => v.title.toLowerCase().includes(q) || v.channel.toLowerCase().includes(q))
+      }
+      list.sort((a,b) => this.sortKey==='rank' ? a.rank-b.rank : (b[this.sortKey]||0)-(a[this.sortKey]||0))
+      return list
+    },
+
+    buildSummary() {
+      const vs = this.videos
+      const avgSpike = vs.length ? vs.reduce((s,v)=>s+(v.spike_score||0),0)/vs.length : 0
+      const topGain  = vs.reduce((m,v)=>Math.max(m,v.view_gain_1d||0),0)
+      const smallCh  = this.smallChBreakout
+      const shorts   = this.shortCount
+      const longs    = this.longCount
+      this.summaryCards = [
+        {label:'급상승 영상',   value:vs.length+'개',      color:'text-blue-400',   sub: this.period==='day' ? this.selectedDate.slice(5)+' 기준' : ({week:'최근 7일',month:'최근 30일'}[this.period])},
+        {label:'🩳 쇼츠',       value: shorts!==null ? shorts+'개' : '-', color:'text-purple-400', sub:'60초 이하'},
+        {label:'🎬 롱폼',       value: longs!==null  ? longs+'개'  : '-', color:'text-cyan-400',   sub:'60초 초과'},
+        {label:'소채널 돌파',   value:smallCh+'개',         color:'text-green-400',  sub:'구독 10만↓ · 조회 20만↑'},
+        {label:'최고 1일 증가', value:this.fmt(topGain),   color:'text-orange-400', sub:'조회수 기준'},
+        {label:'평균 스파이크', value:avgSpike.toFixed(1), color:'text-purple-400', sub:'0~100점'},
+      ]
+    },
+
+    buildTopChannels() {
+      const map = {}
+      this.videos.forEach(v => { if(!map[v.channel]) map[v.channel]={name:v.channel,count:0}; map[v.channel].count++ })
+      this.topChannels = Object.values(map).sort((a,b)=>b.count-a.count).slice(0,10)
+    },
+
+    renderCategoryChart() {
+      const ctx = document.getElementById('categoryChart')
+      if (!ctx || !this.categories.length) return
+      if (this.charts.cat) this.charts.cat.destroy()
+      this.charts.cat = new Chart(ctx, {
+        type:'doughnut',
+        data:{
+          labels: this.categories.map(c=>c.name),
+          datasets:[{data:this.categories.map(c=>c.count),
+            backgroundColor:['#3B82F6','#10B981','#F59E0B','#EF4444','#8B5CF6','#06B6D4','#F97316','#84CC16'],
+            borderWidth:0}]
+        },
+        options:{plugins:{legend:{position:'right',labels:{color:'#6B7280',font:{size:10},boxWidth:8}}}}
+      })
+    },
+
+    renderReasonChart() {
+      const ctx = document.getElementById('reasonChart')
+      if (!ctx) return
+      const map = {}
+      this.videos.forEach(v=>(v.spike_reasons||[]).forEach(r=>{map[r.label]=(map[r.label]||0)+1}))
+      const sorted = Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,6)
+      if (!sorted.length) return
+      if (this.charts.reason) this.charts.reason.destroy()
+      this.charts.reason = new Chart(ctx, {
+        type:'bar',
+        data:{labels:sorted.map(s=>s[0]),datasets:[{data:sorted.map(s=>s[1]),backgroundColor:'#7C3AED',borderRadius:4}]},
+        options:{indexAxis:'y',plugins:{legend:{display:false}},
+          scales:{x:{ticks:{color:'#4B5563',font:{size:9}},grid:{color:'#1F2937'}},
+                  y:{ticks:{color:'#D1D5DB',font:{size:9}},grid:{display:false}}}}
+      })
+    },
+
+    renderKeywordChart() {
+      const ctx = document.getElementById('keywordChart')
+      if (!ctx) return
+      const kws = (this.keywordsData.keywords||[]).slice(0,20)
+      if (!kws.length) return
+      if (this.charts.keyword) this.charts.keyword.destroy()
+      this.charts.keyword = new Chart(ctx, {
+        type:'bar',
+        data:{labels:kws.map(k=>k.keyword),datasets:[{
+          data:kws.map(k=>k.count),
+          backgroundColor:kws.map((_,i)=>i<5?'#7C3AED':i<10?'#5B21B6':'#3B0764'),
+          borderRadius:3}]},
+        options:{indexAxis:'y',plugins:{legend:{display:false}},
+          scales:{x:{ticks:{color:'#4B5563',font:{size:9}},grid:{color:'#1F2937'}},
+                  y:{ticks:{color:'#E5E7EB',font:{size:10}},grid:{display:false}}}}
+      })
+    },
+
+    openDetail(v) { this.detailVideo=v; this.analysisResult=null; this.analyzing=false },
+    closeDetail() { this.detailVideo=null },
+
+    detailMetrics(v) {
+      return [
+        {label:'순위',    value:v.rank+'위',                                         color:'text-yellow-400'},
+        {label:'조회수',  value:this.fmt(v.view_count),                              color:'text-blue-300'},
+        {label:'구독자',  value:this.fmt(v.subscriber_count),                        color:'text-gray-300'},
+        {label:'좋아요',  value:this.fmt(v.like_count),                              color:'text-red-400'},
+        {label:'1일증가', value:v.view_gain_1d?'+'+this.fmt(v.view_gain_1d):'-',     color:'text-green-400'},
+        {label:'반응률',  value:v.engagement_rate?v.engagement_rate.toFixed(1)+'%':'-', color:'text-purple-300'},
+        {label:'바이럴',  value:v.viral_coefficient?v.viral_coefficient.toFixed(1)+'x':'-', color:'text-orange-300'},
+        {label:'스파이크',value:(v.spike_score||0).toFixed(0),                       color:'text-orange-400'},
+        {label:'연속일수',value:(v.trending_days||1)+'일',                           color:'text-teal-300'},
+      ]
+    },
+
+    formatDuration(iso) {
+      if (!iso) return '-'
+      const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/)
+      if (!m) return iso
+      const h=parseInt(m[1]||0), min=parseInt(m[2]||0), s=parseInt(m[3]||0)
+      return h>0 ? `${h}:${String(min).padStart(2,'0')}:${String(s).padStart(2,'0')}` : `${min}:${String(s).padStart(2,'0')}`
+    },
+
+    async collect() {
+      this.collecting = true
+      try {
+        const r = await fetch(`/api/collect?region=${this.region}`, {method:'POST', headers: this.authHeaders()})
+        if (r.status === 401) { this.logout(); return }
+        const d = await r.json()
+        if (d.saved > 0) await this.load()
+        alert(`완료: ${d.saved}개`)
+      } catch(e) { alert('실패: '+e.message) }
+      this.collecting = false
+    },
+
+    logout() {
+      localStorage.clear()
+      window.location.href = '/login'
+    },
+
+    authHeaders() {
+      const token = localStorage.getItem('yt_token')
+      return token ? { 'Authorization': `Bearer ${token}` } : {}
+    },
+
+    async get(url) {
+      try {
+        const r = await fetch(url, { headers: this.authHeaders() })
+        if (r.status === 401) { this.logout(); return null }
+        return r.ok ? r.json() : null
+      } catch { return null }
+    },
+
+    async authGet(url) {
+      try {
+        const r = await fetch(url, { headers: this.authHeaders() })
+        if (!r.ok) return null
+        return r.json()
+      } catch { return null }
+    },
+
+    // ── 관리자 ──────────────────────────────────────────────────────────────
+    async loadAdminRequests() {
+      this.adminLoading = true
+      const data = await this.authGet('/auth/admin/requests?status_filter=pending')
+      this.adminRequests = data?.requests || []
+      this.adminLoading = false
+    },
+
+    async loadAdminUsers() {
+      this.adminLoading = true
+      const data = await this.authGet('/auth/admin/users')
+      this.adminUsers = data?.users || []
+      this.adminLoading = false
+    },
+
+    async approveRequest(id) {
+      const r = await fetch(`/auth/admin/requests/${id}/approve`, {method:'POST', headers: this.authHeaders()})
+      const d = await r.json()
+      this.adminMsg = r.ok ? `✅ ${d.message} — 임시 비밀번호: ${d.temp_password}` : `❌ ${d.detail}`
+      if (r.ok) this.loadAdminRequests()
+    },
+
+    async rejectRequest(id) {
+      const r = await fetch(`/auth/admin/requests/${id}/reject`, {method:'POST', headers: this.authHeaders()})
+      const d = await r.json()
+      this.adminMsg = r.ok ? `✅ ${d.message}` : `❌ ${d.detail}`
+      if (r.ok) this.loadAdminRequests()
+    },
+
+    async toggleUser(id) {
+      const r = await fetch(`/auth/admin/users/${id}/toggle-active`, {method:'POST', headers: this.authHeaders()})
+      const d = await r.json()
+      this.adminMsg = r.ok ? `✅ ${d.username} — ${d.is_active ? '활성화' : '비활성화'}` : `❌ ${d.detail}`
+      if (r.ok) this.loadAdminUsers()
+    },
+
+    async resetPassword(id) {
+      if (!confirm('비밀번호를 초기화하시겠습니까?')) return
+      const r = await fetch(`/auth/admin/users/${id}/reset-password`, {method:'POST', headers: this.authHeaders()})
+      const d = await r.json()
+      this.adminMsg = r.ok ? `✅ ${d.message} — 임시 비밀번호: ${d.temp_password}` : `❌ ${d.detail}`
+    },
+
+    fmt(n) {
+      if (n==null) return '-'
+      if (n>=100000000) return (n/100000000).toFixed(1)+'억'
+      if (n>=10000) return Math.round(n/10000)+'만'
+      if (n>=1000) return (n/1000).toFixed(1)+'k'
+      return n.toLocaleString()
+    },
+  }
+}
+</script>
+</body>
+</html>

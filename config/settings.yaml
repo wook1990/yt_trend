@@ -1,0 +1,101 @@
+# yt_trending 기본 설정
+
+fetch:
+  default_region: KR
+  limit_per_category: 50      # 카테고리당 최대 수집 수
+  limit_per_keyword: 50       # KR 키워드당 최대 수집 수 (search.list = 100 units/call)
+  limit_per_keyword_overseas: 15  # US/JP 키워드당 수집 수 — 할당량 절약
+  default_provider: yt_api
+
+  # ── 카테고리 trending 수집 ─────────────────────────────────────────────
+  # 생산성/정보 가치 높은 카테고리만 유지. 엔터/스포츠/브이로그 전부 제거.
+  collect_categories:
+    - id: 25
+      name: "뉴스/시사"
+      priority: 1
+    - id: 27
+      name: "교육/자기계발"
+      priority: 1
+    - id: 28
+      name: "IT/테크"
+      priority: 1
+    - id: 26
+      name: "노하우/스킬"
+      priority: 2
+
+  # ── 키워드 검색 수집 ──────────────────────────────────────────────────
+  # YouTube 카테고리 시스템에 없는 고CPM 주제를 직접 검색으로 수집.
+  # 주의: search.list = 100 units/call → 키워드 수 × 100 units 소모
+  search_keywords:
+    # 재테크 / 투자 / 부동산
+    - "재테크"
+    - "주식 투자"
+    - "부동산 투자"
+    - "ETF 투자"
+    - "경제 전망"
+    # AI / IT / 개발
+    - "AI 활용법"
+    - "ChatGPT 사용법"
+    - "파이썬 강의"
+    - "노코드 자동화"
+    # 창업 / 비즈니스 / 부업
+    - "창업 방법"
+    - "부업 추천"
+    - "퍼스널브랜딩"
+    - "유튜브 수익화"
+    # 건강 / 의학
+    - "건강 관리"
+    - "다이어트 방법"
+    # 자기계발 / 생산성
+    - "자기계발"
+    - "생산성 향상"
+    - "영어 공부법"
+    # 법률 / 세금
+    - "세금 절약"
+    - "법인 설립"
+
+  # ── 제외 카테고리 ────────────────────────────────────────────────────
+  # 수집 자체를 안 함 + API 응답 필터링에도 적용
+  # ── 미국(US) 선행 감지 키워드 ──────────────────────────────────────────
+  # 5개 × 101 units = 505 units / 15개 결과 → 충분한 신호 포착
+  us_search_keywords:
+    - "AI tools 2025"
+    - "side hustle passive income"
+    - "personal finance investing"
+    - "ChatGPT productivity"
+    - "health optimization biohacking"
+
+  # ── 일본(JP) 선행 감지 키워드 ──────────────────────────────────────────
+  jp_search_keywords:
+    - "AI 活用 副業"       # AI 부업 활용
+    - "投資 初心者 2025"   # 투자 초보
+    - "ChatGPT 使い方"     # ChatGPT 사용법
+    - "筋トレ ダイエット"  # 운동 다이어트
+    - "起業 副業 稼ぐ"     # 창업 부업
+
+  exclude_categories:
+    - id: 10
+      name: "음악/MV"
+    - id: 20
+      name: "게임"
+    - id: 24
+      name: "엔터테인먼트"
+    - id: 17
+      name: "스포츠"
+    - id: 1
+      name: "영화/애니"
+    - id: 22
+      name: "브이로그/일상"
+    - id: 2
+      name: "자동차"
+    - id: 23
+      name: "코미디"
+
+regions:
+  - KR
+  - US
+  - JP
+
+output:
+  dir: data/
+  format: json

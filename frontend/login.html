@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YT Trending — 로그인</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <style>
+    [x-cloak]{display:none}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+    .fade-in{animation:fadeIn .2s ease-out}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .spin{animation:spin 1s linear infinite}
+  </style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen flex items-center justify-center p-4"
+  x-data="authApp()" x-init="init()">
+
+<div class="w-full max-w-sm fade-in">
+  <!-- 로고 -->
+  <div class="text-center mb-8">
+    <div class="text-4xl mb-2">📈</div>
+    <h1 class="text-xl font-bold text-white">YT Trending</h1>
+    <p class="text-xs text-gray-500 mt-1">YouTube 트렌드 분석 대시보드</p>
+  </div>
+
+  <!-- 탭 -->
+  <div class="flex bg-gray-900 rounded-xl p-1 mb-6 border border-gray-800">
+    <button @click="tab='login'"
+      :class="tab==='login' ? 'bg-gray-700 text-white' : 'text-gray-500'"
+      class="flex-1 text-sm py-2 rounded-lg transition font-medium">로그인</button>
+    <button @click="tab='request'"
+      :class="tab==='request' ? 'bg-gray-700 text-white' : 'text-gray-500'"
+      class="flex-1 text-sm py-2 rounded-lg transition font-medium">가입 요청</button>
+  </div>
+
+  <!-- ── 로그인 폼 ── -->
+  <div x-show="tab==='login'" class="space-y-3">
+    <div>
+      <label class="text-xs text-gray-400 mb-1 block">아이디</label>
+      <input x-model="loginForm.username" @keydown.enter="doLogin()"
+        type="text" placeholder="username"
+        class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition" />
+    </div>
+    <div>
+      <label class="text-xs text-gray-400 mb-1 block">비밀번호</label>
+      <input x-model="loginForm.password" @keydown.enter="doLogin()"
+        type="password" placeholder="••••••••"
+        class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition" />
+    </div>
+
+    <div x-show="loginError" class="bg-red-900/40 border border-red-800/60 rounded-xl px-4 py-2.5 text-xs text-red-300"
+      x-text="loginError"></div>
+
+    <button @click="doLogin()" :disabled="loading"
+      class="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2 text-sm">
+      <span x-show="loading" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full spin"></span>
+      <span x-text="loading ? '로그인 중...' : '로그인'"></span>
+    </button>
+
+    <p class="text-center text-xs text-gray-600">
+      계정이 없으신가요?
+      <button @click="tab='request'" class="text-blue-400 hover:text-blue-300 transition ml-1">가입 요청하기</button>
+    </p>
+  </div>
+
+  <!-- ── 가입 요청 폼 ── -->
+  <div x-show="tab==='request'" class="space-y-3">
+    <div class="bg-yellow-900/30 border border-yellow-800/50 rounded-xl px-4 py-3 text-xs text-yellow-300 leading-relaxed">
+      ⚠️ 이 서비스는 <strong>초대제 운영</strong>입니다.<br>
+      가입 요청을 보내면 관리자 검토 후 승인 시 안내드립니다.
+    </div>
+
+    <div>
+      <label class="text-xs text-gray-400 mb-1 block">원하는 아이디</label>
+      <input x-model="reqForm.username" type="text" placeholder="username (영문/숫자)"
+        class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition" />
+    </div>
+    <div>
+      <label class="text-xs text-gray-400 mb-1 block">이메일</label>
+      <input x-model="reqForm.email" type="email" placeholder="your@email.com"
+        class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition" />
+    </div>
+    <div>
+      <label class="text-xs text-gray-400 mb-1 block">가입 사유 <span class="text-gray-600">(선택)</span></label>
+      <textarea x-model="reqForm.reason" placeholder="어떤 목적으로 사용하실지 간단히 적어주세요"
+        rows="3"
+        class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition resize-none"></textarea>
+    </div>
+
+    <div x-show="reqError" class="bg-red-900/40 border border-red-800/60 rounded-xl px-4 py-2.5 text-xs text-red-300"
+      x-text="reqError"></div>
+    <div x-show="reqSuccess" class="bg-green-900/40 border border-green-800/60 rounded-xl px-4 py-2.5 text-xs text-green-300"
+      x-text="reqSuccess"></div>
+
+    <button @click="doRequest()" :disabled="loading || !!reqSuccess"
+      class="w-full bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2 text-sm">
+      <span x-show="loading" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full spin"></span>
+      <span x-text="loading ? '요청 중...' : '가입 요청 보내기'"></span>
+    </button>
+
+    <p class="text-center text-xs text-gray-600">
+      이미 계정이 있으신가요?
+      <button @click="tab='login'" class="text-blue-400 hover:text-blue-300 transition ml-1">로그인</button>
+    </p>
+  </div>
+</div>
+
+<script>
+function authApp() {
+  return {
+    tab: 'login',
+    loading: false,
+    loginForm: { username: '', password: '' },
+    loginError: '',
+    reqForm: { username: '', email: '', reason: '' },
+    reqError: '',
+    reqSuccess: '',
+
+    init() {
+      // 이미 로그인돼 있으면 메인으로
+      if (localStorage.getItem('yt_token')) {
+        window.location.href = '/'
+      }
+    },
+
+    async doLogin() {
+      this.loginError = ''
+      if (!this.loginForm.username || !this.loginForm.password) {
+        this.loginError = '아이디와 비밀번호를 입력해주세요.'
+        return
+      }
+      this.loading = true
+      try {
+        const r = await fetch('/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(this.loginForm),
+        })
+        const data = await r.json()
+        if (!r.ok) { this.loginError = data.detail || '로그인 실패'; return }
+        localStorage.setItem('yt_token', data.access_token)
+        localStorage.setItem('yt_role',  data.role)
+        localStorage.setItem('yt_username', data.username)
+        window.location.href = '/'
+      } catch (e) {
+        this.loginError = '서버 연결 실패'
+      } finally {
+        this.loading = false
+      }
+    },
+
+    async doRequest() {
+      this.reqError = ''; this.reqSuccess = ''
+      if (!this.reqForm.username || !this.reqForm.email) {
+        this.reqError = '아이디와 이메일은 필수입니다.'
+        return
+      }
+      this.loading = true
+      try {
+        const r = await fetch('/auth/signup-request', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(this.reqForm),
+        })
+        const data = await r.json()
+        if (!r.ok) { this.reqError = data.detail || '요청 실패'; return }
+        this.reqSuccess = data.message
+        this.reqForm = { username: '', email: '', reason: '' }
+      } catch (e) {
+        this.reqError = '서버 연결 실패'
+      } finally {
+        this.loading = false
+      }
+    },
+  }
+}
+</script>
+</body>
+</html>
