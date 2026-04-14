@@ -6,9 +6,9 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Header, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 load_dotenv(Path(__file__).parent.parent / "config" / ".env")
@@ -93,9 +93,31 @@ def _ensure_admin():
         db.close()
 
 
+@app.post("/internal/collect", include_in_schema=False)
+async def internal_collect(
+    background_tasks: BackgroundTasks,
+    x_scheduler_token: str | None = Header(None),
+):
+    """Cloud Scheduler 전용 수집 트리거. SCHEDULER_SECRET 헤더로 인증."""
+    secret = os.environ.get("SCHEDULER_SECRET", "")
+    if secret and x_scheduler_token != secret:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    background_tasks.add_task(_run_collect_job)
+    return JSONResponse({"status": "started"})
+
+
+def _run_collect_job():
+    from backend.scheduler import run_daily_job
+    try:
+        run_daily_job()
+    except Exception as e:
+        print(f"[collect_job] 실패: {e}")
+
+
 def start():
     import uvicorn
-    uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("backend.main:app", host="0.0.0.0", port=port)
 
 
 if __name__ == "__main__":
