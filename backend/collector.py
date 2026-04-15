@@ -19,7 +19,7 @@ import requests
 import yaml
 from sqlalchemy.orm import Session
 
-from backend.analyzer import compute
+from backend.analyzer import compute, compute_trust
 from backend.models import TrendingSnapshot, CATEGORY_NAMES
 
 API_BASE = "https://www.googleapis.com/youtube/v3"
@@ -181,6 +181,15 @@ def _save_videos(
         t_days = trending_days_map.get(video["id"], 1)
         metrics = compute(video, prev, t_days)
 
+        # 신뢰도 점수 계산
+        trust_score, trust_flags = compute_trust(
+            view_count=video.get("view_count") or 0,
+            like_count=video.get("like_count"),
+            comment_count=video.get("comment_count"),
+            subscriber_count=video.get("subscriber_count"),
+            view_velocity=metrics.get("view_velocity"),
+        )
+
         vid_category_id   = video.get("category_id") or fallback_category
         vid_category_name = CATEGORY_NAMES.get(vid_category_id, "기타")
 
@@ -210,6 +219,8 @@ def _save_videos(
             thumbnail=video.get("thumbnail", ""),
             category_name=vid_category_name,
             tags=json.dumps(raw_tags, ensure_ascii=False),
+            trust_score=trust_score,
+            trust_flags=json.dumps(trust_flags, ensure_ascii=False),
             **metrics,
         )
         db.add(row)

@@ -189,6 +189,8 @@
     <!-- 사용자 -->
     <div class="flex items-center gap-1.5">
       <span class="text-[10px] text-ink-muted hidden sm:block" x-text="currentUser?.username"></span>
+      <button @click="showGuide = true" title="지표 가이드"
+        class="text-ink-muted hover:text-matcha transition text-sm leading-none font-bold">?</button>
       <button @click="logout()" title="로그아웃"
         class="text-ink-muted hover:text-pom transition text-base leading-none">⏏</button>
     </div>
@@ -397,12 +399,14 @@
   </div>
 
   <!-- ④ 키워드 트렌드 -->
-  <div x-show="activeTab==='keywords'" x-cloak class="fade-in">
-    <div class="text-xs text-ink-muted mb-3"
-      x-text="`분석 영상 ${keywordsData.total_videos||0}개 · ${keywordsData.start||''} ~ ${keywordsData.end||''}`"></div>
-    <!-- 차트 -->
-    <div class="clay-card p-3 mb-3">
-      <canvas id="keywordChart" height="260"></canvas>
+  <div x-show="activeTab==='keywords'" x-cloak class="fade-in space-y-4">
+    <!-- 트렌드 차트 -->
+    <div>
+      <div class="text-xs text-ink-muted mb-2"
+        x-text="`분석 영상 ${keywordsData.total_videos||0}개 · ${keywordsData.start||''} ~ ${keywordsData.end||''}`"></div>
+      <div class="clay-card p-3">
+        <canvas id="keywordChart" height="260"></canvas>
+      </div>
     </div>
     <!-- 태그 클라우드 -->
     <div class="flex flex-wrap gap-1.5">
@@ -417,6 +421,54 @@
         </button>
       </template>
       <div x-show="!(keywordsData.keywords||[]).length" class="text-ink-muted text-sm py-8 w-full text-center">데이터 없음</div>
+    </div>
+
+    <!-- 내 키워드 관리 -->
+    <div class="clay-card p-4 space-y-3" x-init="loadMyKeywords()">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-sm">🔖</span>
+          <span class="text-sm font-bold text-ink">내 키워드</span>
+          <span class="text-[10px] text-ink-muted" x-text="myKeywords.length + '개'"></span>
+        </div>
+        <button @click="collectMyKeywords()" :disabled="keywordCollecting || myKeywords.length===0"
+          class="btn-clay text-[10px] px-3 py-1.5 font-semibold bg-[#f0fdf7] border border-matcha/30 text-matcha rounded-xl flex items-center gap-1">
+          <span x-show="keywordCollecting" class="w-3 h-3 border-2 border-matcha/30 border-t-matcha rounded-full spin"></span>
+          <span x-text="keywordCollecting ? '수집중...' : '▶ 지금 수집'"></span>
+        </button>
+      </div>
+
+      <!-- 추가 입력 -->
+      <div class="flex gap-2">
+        <input x-model="newKeyword" @keydown.enter="addMyKeyword()"
+          placeholder="키워드 입력 (예: 쇼츠 수익화)"
+          class="clay-input flex-1 text-xs px-3 py-2 text-ink" />
+        <select x-model="newKeywordRegion"
+          class="clay-input text-[10px] px-2 py-2 text-ink-soft focus:outline-none" style="width:70px">
+          <option value="KR">🇰🇷 KR</option>
+          <option value="US">🇺🇸 US</option>
+          <option value="JP">🇯🇵 JP</option>
+        </select>
+        <button @click="addMyKeyword()" :disabled="!newKeyword.trim()"
+          class="btn-matcha btn-clay text-xs px-3 py-2 font-bold">추가</button>
+      </div>
+
+      <!-- 키워드 목록 -->
+      <div x-show="myKeywordsLoading" class="text-center text-[11px] text-ink-muted py-2">로딩중...</div>
+      <div x-show="!myKeywordsLoading && myKeywords.length===0"
+        class="text-center text-[11px] text-ink-muted py-2">
+        키워드를 추가하면 수동으로 수집하거나 자동 수집에 포함됩니다.
+      </div>
+      <div class="flex flex-wrap gap-1.5">
+        <template x-for="kw in myKeywords" :key="kw.id">
+          <div class="flex items-center gap-1 bg-oat-light border border-oat rounded-full px-2.5 py-1">
+            <span class="text-[10px] text-ink-soft font-semibold" x-text="kw.keyword"></span>
+            <span class="text-[9px] text-ink-muted" x-text="kw.region"></span>
+            <button @click="deleteMyKeyword(kw.id)"
+              class="text-ink-muted hover:text-pom ml-1 text-[10px] leading-none">✕</button>
+          </div>
+        </template>
+      </div>
     </div>
   </div>
 
@@ -533,6 +585,67 @@
           <span x-text="topicLoading ? '분석 중...' : '🔍 분석 시작'"></span>
         </button>
       </div>
+
+      <!-- 고급 필터 토글 -->
+      <button @click="topicShowAdvanced = !topicShowAdvanced"
+        class="flex items-center gap-1 text-[10px] text-ink-muted hover:text-ink transition-colors">
+        <span x-text="topicShowAdvanced ? '▲' : '▼'"></span>
+        <span>고급 필터</span>
+        <span x-show="topicVideoType!=='all'||topicMinViews>0||topicSubscriberTier!=='all'||topicCompareTopic"
+          class="ml-1 px-1.5 py-0.5 bg-matcha/10 text-matcha rounded-full text-[9px] font-bold">적용중</span>
+      </button>
+
+      <div x-show="topicShowAdvanced" class="space-y-2 pt-1">
+        <div class="grid grid-cols-2 gap-2">
+          <!-- 영상 타입 -->
+          <div>
+            <label class="text-[10px] font-semibold text-ink-soft mb-1 block">영상 타입</label>
+            <select x-model="topicVideoType" class="clay-input w-full px-2 py-1.5 text-[10px] text-ink-soft focus:outline-none">
+              <option value="all">전체</option>
+              <option value="short">쇼츠만 (≤60초)</option>
+              <option value="long">롱폼만 (>60초)</option>
+            </select>
+          </div>
+          <!-- 최소 조회수 -->
+          <div>
+            <label class="text-[10px] font-semibold text-ink-soft mb-1 block">최소 조회수</label>
+            <select x-model.number="topicMinViews" class="clay-input w-full px-2 py-1.5 text-[10px] text-ink-soft focus:outline-none">
+              <option value="0">제한없음</option>
+              <option value="10000">1만 이상</option>
+              <option value="100000">10만 이상</option>
+              <option value="1000000">100만 이상</option>
+            </select>
+          </div>
+          <!-- 채널 규모 -->
+          <div>
+            <label class="text-[10px] font-semibold text-ink-soft mb-1 block">채널 규모</label>
+            <select x-model="topicSubscriberTier" class="clay-input w-full px-2 py-1.5 text-[10px] text-ink-soft focus:outline-none">
+              <option value="all">전체</option>
+              <option value="small">소형 (10만 미만)</option>
+              <option value="mid">중형 (100만 미만)</option>
+              <option value="large">대형 (100만 이상)</option>
+            </select>
+          </div>
+          <!-- 정렬 기준 -->
+          <div>
+            <label class="text-[10px] font-semibold text-ink-soft mb-1 block">정렬 기준</label>
+            <select x-model="topicSortBy" class="clay-input w-full px-2 py-1.5 text-[10px] text-ink-soft focus:outline-none">
+              <option value="view_count">조회수 높은 순</option>
+              <option value="upload_date">최신 업로드 순</option>
+              <option value="engagement">참여율 높은 순</option>
+            </select>
+          </div>
+        </div>
+        <!-- 비교 주제 -->
+        <div>
+          <label class="text-[10px] font-semibold text-ink-soft mb-1 block">비교 주제 <span class="text-ink-muted font-normal">(선택 — 두 주제 비교 분석)</span></label>
+          <input x-model="topicCompareTopic" placeholder="예: 드롭쉬핑, 쿠팡파트너스"
+            class="clay-input w-full text-[10px] px-3 py-2 text-ink" />
+        </div>
+        <!-- 필터 초기화 -->
+        <button @click="topicVideoType='all';topicMinViews=0;topicSubscriberTier='all';topicSortBy='view_count';topicCompareTopic=''"
+          class="text-[10px] text-ink-muted hover:text-pom underline">필터 초기화</button>
+      </div>
     </div>
 
     <!-- 에러 -->
@@ -572,6 +685,7 @@
             {key:'titles',    label:'✏️ 제목공식'},
             {key:'ideas',     label:'💡 아이디어'},
             {key:'videos',    label:'🎬 검색영상'},
+            ...(topicResult.compare ? [{key:'compare', label:'⚡ 비교'}] : []),
           ]" :key="s.key">
             <button @click="topicSection=s.key"
               :class="topicSection===s.key
@@ -680,7 +794,7 @@
         <!-- ── 검색된 영상 섹션 ── -->
         <div x-show="topicSection==='videos'" class="space-y-1.5">
           <div class="text-[10px] text-ink-muted mb-1.5"
-            x-text="'YouTube 검색 결과 · 조회수 순 · ' + topicResult.video_count + '개'"></div>
+            x-text="'YouTube 검색 결과 · ' + (topicResult.filters?.sort_by==='upload_date' ? '최신순' : topicResult.filters?.sort_by==='engagement' ? '참여율순' : '조회수순') + ' · ' + topicResult.video_count + '개'"></div>
           <template x-for="(v,i) in (topicResult.videos || [])" :key="v.video_id">
             <a :href="v.url" target="_blank"
               class="clay-card-sm flex items-center gap-2.5 p-2.5 cursor-pointer hover:shadow-md transition-shadow">
@@ -707,6 +821,286 @@
           </template>
         </div>
 
+        <!-- ── 비교 분석 섹션 ── -->
+        <template x-if="topicSection==='compare' && topicResult.compare">
+          <div class="space-y-3">
+            <div class="clay-card p-3" style="background:linear-gradient(135deg,#f0fdf7 0%,#fff 100%)">
+              <div class="text-xs font-bold text-ink mb-1">⚡ 비교 결과</div>
+              <div class="flex items-center gap-2 mb-2">
+                <span class="text-[10px] px-2 py-0.5 rounded-full font-bold"
+                  :class="topicResult.compare.analysis?.winner==='A' ? 'bg-matcha/10 text-matcha' : topicResult.compare.analysis?.winner==='B' ? 'bg-slushie/10 text-slushie' : 'bg-oat-light text-ink-soft'"
+                  x-text="topicResult.compare.analysis?.winner==='A' ? '🏆 ' + topicResult.topic + ' 우세' : topicResult.compare.analysis?.winner==='B' ? '🏆 ' + topicResult.compare.topic + ' 우세' : '🤝 동등'"></span>
+              </div>
+              <p class="text-[11px] text-ink-soft leading-relaxed" x-text="topicResult.compare.analysis?.winner_reason"></p>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <!-- 주제 A -->
+              <div class="clay-card-sm p-3 space-y-1.5">
+                <div class="text-[10px] font-bold text-matcha" x-text="'A: ' + topicResult.topic"></div>
+                <div class="text-[10px] text-ink-soft" x-text="topicResult.compare.analysis?.topic_a?.topic_overview"></div>
+                <div class="flex gap-1 flex-wrap mt-1">
+                  <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-oat-light text-ink-soft"
+                    x-text="topicResult.compare.analysis?.topic_a?.trend_direction?.status"></span>
+                  <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-oat-light text-ink-soft"
+                    x-text="'CPM ' + (topicResult.compare.analysis?.topic_a?.cpm_potential||'-')"></span>
+                  <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-oat-light text-ink-soft"
+                    x-text="'진입 ' + (topicResult.compare.analysis?.topic_a?.entry_difficulty||'-')"></span>
+                </div>
+                <div class="text-[10px] text-ink-muted italic" x-text="'💡 ' + (topicResult.compare.analysis?.topic_a?.best_content_idea?.title||'')"></div>
+              </div>
+              <!-- 주제 B -->
+              <div class="clay-card-sm p-3 space-y-1.5">
+                <div class="text-[10px] font-bold text-slushie" x-text="'B: ' + topicResult.compare.topic"></div>
+                <div class="text-[10px] text-ink-soft" x-text="topicResult.compare.analysis?.topic_b?.topic_overview"></div>
+                <div class="flex gap-1 flex-wrap mt-1">
+                  <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-oat-light text-ink-soft"
+                    x-text="topicResult.compare.analysis?.topic_b?.trend_direction?.status"></span>
+                  <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-oat-light text-ink-soft"
+                    x-text="'CPM ' + (topicResult.compare.analysis?.topic_b?.cpm_potential||'-')"></span>
+                  <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-oat-light text-ink-soft"
+                    x-text="'진입 ' + (topicResult.compare.analysis?.topic_b?.entry_difficulty||'-')"></span>
+                </div>
+                <div class="text-[10px] text-ink-muted italic" x-text="'💡 ' + (topicResult.compare.analysis?.topic_b?.best_content_idea?.title||'')"></div>
+              </div>
+            </div>
+            <div class="clay-card-sm p-3">
+              <div class="text-[10px] font-bold text-ink mb-1">전략 추천</div>
+              <p class="text-[11px] text-ink-soft leading-relaxed" x-text="topicResult.compare.analysis?.recommendation"></p>
+            </div>
+          </div>
+        </template>
+
+      </div>
+    </template>
+  </div>
+
+  <!-- 큐레이션 탭 — 신뢰도 필터 + 카테고리별 20개 -->
+  <div x-show="activeTab==='curated'" x-cloak class="fade-in space-y-3">
+
+    <!-- 컨트롤 -->
+    <div class="clay-card p-3 space-y-2">
+      <div class="flex items-center gap-2 flex-wrap">
+        <div class="flex items-center gap-1.5 text-[10px] text-ink-muted">
+          <span class="font-semibold">기간</span>
+          <select x-model.number="curatedPeriod" class="clay-input px-1.5 py-1 text-[10px] text-ink-soft focus:outline-none" style="border-radius:8px">
+            <option value="1">1일</option>
+            <option value="3">3일</option>
+            <option value="7">7일</option>
+            <option value="14">14일</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-1.5 text-[10px] text-ink-muted">
+          <span class="font-semibold">신뢰도</span>
+          <select x-model.number="curatedMinTrust" class="clay-input px-1.5 py-1 text-[10px] text-ink-soft focus:outline-none" style="border-radius:8px">
+            <option value="40">느슨하게 (40+)</option>
+            <option value="60">기본 (60+)</option>
+            <option value="75">엄격하게 (75+)</option>
+            <option value="90">매우 엄격 (90+)</option>
+          </select>
+        </div>
+        <button @click="loadCurated()" :disabled="curatedLoading"
+          class="btn-matcha btn-clay text-[10px] px-3 py-1.5 font-semibold flex items-center gap-1.5 ml-auto">
+          <span x-show="curatedLoading" class="w-3 h-3 border-2 border-white/40 border-t-white rounded-full spin"></span>
+          <span x-text="curatedLoading ? '필터링중...' : '🔍 큐레이션'"></span>
+        </button>
+      </div>
+      <!-- 필터 결과 요약 -->
+      <template x-if="curatedData">
+        <div class="flex gap-3 text-[10px] text-ink-muted pt-1 border-t border-oat">
+          <span>전체 <span class="font-bold text-ink" x-text="curatedData.total_before_filter"></span>개</span>
+          <span class="text-pom">사기 의심 제거 <span class="font-bold" x-text="curatedData.filtered_out"></span>개</span>
+          <span class="text-matcha">최종 <span class="font-bold" x-text="curatedData.total_after_filter"></span>개</span>
+        </div>
+      </template>
+    </div>
+
+    <!-- 빈 상태 -->
+    <div x-show="!curatedData && !curatedLoading" class="clay-card p-8 text-center">
+      <div class="text-3xl mb-2">✅</div>
+      <div class="text-sm font-bold text-ink mb-1">뷰봇 필터링 + 카테고리별 큐레이션</div>
+      <div class="text-[11px] text-ink-muted mb-4">
+        사기·뷰봇 영상을 제거하고<br>카테고리별 신뢰도 높은 20개 영상만 표시
+      </div>
+      <button @click="loadCurated()" class="btn-matcha btn-clay text-xs px-4 py-2 font-bold">시작하기</button>
+    </div>
+
+    <!-- 카테고리별 결과 -->
+    <template x-if="curatedData && curatedData.categories.length > 0">
+      <div class="space-y-2">
+        <!-- 카테고리 탭 버튼 -->
+        <div class="flex gap-1.5 overflow-x-auto hide-scrollbar pb-1">
+          <template x-for="cat in curatedData.categories" :key="cat.category_id">
+            <button @click="curatedOpenCat = cat.category_id"
+              :class="curatedOpenCat === cat.category_id
+                ? 'bg-ink text-white border-ink'
+                : 'bg-oat-light border-oat text-ink-muted hover:bg-white'"
+              class="border text-[10px] px-3 py-1.5 rounded-full whitespace-nowrap font-semibold transition shrink-0">
+              <span x-text="cat.category_name"></span>
+              <span class="opacity-60 ml-1" x-text="cat.showing + '개'"></span>
+            </button>
+          </template>
+        </div>
+
+        <!-- 선택된 카테고리 영상 목록 -->
+        <template x-for="cat in curatedData.categories" :key="'list-' + cat.category_id">
+          <div x-show="curatedOpenCat === cat.category_id" class="space-y-1.5">
+            <div class="flex items-center justify-between px-1">
+              <span class="text-[10px] text-ink-muted"
+                x-text="cat.category_name + ' · ' + curatedData.date + ' · 신뢰도 ' + curatedData.min_trust_score + '점+ 필터'"></span>
+              <span class="text-[10px] text-matcha font-semibold" x-text="cat.showing + '개 표시'"></span>
+            </div>
+            <template x-for="(v, i) in cat.videos" :key="v.video_id">
+              <div @click="openDetail(v)"
+                class="clay-card-sm flex items-center gap-2.5 p-2.5 cursor-pointer hover:shadow-md transition-shadow">
+                <span class="text-[10px] text-ink-muted w-5 text-right shrink-0" x-text="i+1"></span>
+                <div class="relative shrink-0">
+                  <img :src="v.thumbnail"
+                    :class="v.is_short ? 'w-8 h-[42px]' : 'w-16 h-[42px]'"
+                    class="object-cover rounded-lg bg-oat-light" loading="lazy" />
+                  <span x-show="v.is_short"
+                    class="absolute bottom-0.5 left-0 right-0 text-center text-[8px] bg-pom/80 text-white rounded-b-lg leading-4">Shorts</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="text-xs text-ink font-medium line-clamp-2 leading-snug" x-text="v.title"></div>
+                  <div class="flex items-center gap-1.5 mt-0.5">
+                    <span class="text-[10px] text-ink-muted truncate max-w-[100px]" x-text="v.channel"></span>
+                    <!-- 신뢰도 배지 -->
+                    <span class="text-[9px] px-1.5 py-0.5 rounded-full font-bold shrink-0"
+                      :class="(v.trust_score||100) >= 80 ? 'bg-matcha/10 text-matcha' : (v.trust_score||100) >= 60 ? 'bg-lemon/20 text-[#854d0e]' : 'bg-pom/10 text-pom'"
+                      x-text="'신뢰 ' + (v.trust_score||'?')"></span>
+                  </div>
+                </div>
+                <div class="text-right shrink-0 text-[10px] space-y-0.5">
+                  <div class="text-ink font-bold" x-text="fmt(v.view_count)"></div>
+                  <div class="text-pom font-semibold" x-text="'⚡' + (v.spike_score||0).toFixed(0)"></div>
+                </div>
+              </div>
+            </template>
+          </div>
+        </template>
+      </div>
+    </template>
+
+    <!-- 데이터 없음 -->
+    <template x-if="curatedData && curatedData.categories.length === 0">
+      <div class="clay-card p-6 text-center text-[11px] text-ink-muted">
+        조건에 맞는 영상이 없습니다.<br>
+        신뢰도 기준을 낮추거나 기간을 늘려보세요.
+      </div>
+    </template>
+  </div>
+
+  <!-- 부업 기회 분석 탭 -->
+  <div x-show="activeTab==='opportunity'" x-cloak class="fade-in space-y-3">
+
+    <!-- 컨트롤 -->
+    <div class="flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2 text-[10px] text-ink-muted">
+        <span class="font-semibold">기간</span>
+        <select x-model.number="opportunityDays" class="clay-input px-1.5 py-1 text-[10px] text-ink-soft focus:outline-none" style="border-radius:8px">
+          <option value="3">3일</option>
+          <option value="7">7일</option>
+          <option value="14">14일</option>
+          <option value="30">30일</option>
+        </select>
+      </div>
+      <button @click="loadOpportunity()"
+        :disabled="opportunityLoading"
+        class="btn-matcha btn-clay text-[10px] px-3 py-1.5 font-semibold flex items-center gap-1.5">
+        <span x-show="opportunityLoading" class="w-3 h-3 border-2 border-white/40 border-t-white rounded-full spin"></span>
+        <span x-text="opportunityLoading ? '분석 중...' : '🔍 분석'"></span>
+      </button>
+    </div>
+
+    <!-- 빈 상태 -->
+    <div x-show="!opportunityData && !opportunityLoading"
+      class="clay-card p-8 text-center">
+      <div class="text-3xl mb-2">💰</div>
+      <div class="text-sm font-bold text-ink mb-1">카테고리별 부업 적합도 분석</div>
+      <div class="text-[11px] text-ink-muted">CPM · 성장성 · 진입 난이도 · 참여율 종합 점수</div>
+      <button @click="loadOpportunity()" class="btn-matcha btn-clay text-xs px-4 py-2 font-bold mt-4">분석 시작</button>
+    </div>
+
+    <!-- 결과 카드 목록 -->
+    <template x-if="opportunityData">
+      <div class="space-y-2">
+        <div class="text-[10px] text-ink-muted"
+          x-text="opportunityData.date + ' 기준 · 최근 ' + opportunityData.period_days + '일 · ' + opportunityData.region"></div>
+
+        <template x-for="(item, i) in opportunityData.opportunities" :key="item.category_id">
+          <div class="clay-card p-4 space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="text-base font-bold text-ink-muted" x-text="'#' + (i+1)"></span>
+                <span class="text-sm font-extrabold text-ink" x-text="item.category_name"></span>
+                <span class="text-[9px] px-1.5 py-0.5 rounded-full font-bold"
+                  :class="item.cpm_tier==='high' ? 'bg-matcha/10 text-matcha' : item.cpm_tier==='mid' ? 'bg-lemon/20 text-[#854d0e]' : 'bg-oat-light text-ink-muted'"
+                  x-text="item.cpm_tier==='high' ? '고CPM' : item.cpm_tier==='mid' ? '중CPM' : '저CPM'"></span>
+              </div>
+              <!-- 기회 점수 게이지 -->
+              <div class="flex items-center gap-2">
+                <div class="text-xl font-black"
+                  :class="item.opportunity_score>=70 ? 'text-matcha' : item.opportunity_score>=50 ? 'text-lemon' : 'text-ink-muted'"
+                  x-text="item.opportunity_score"></div>
+                <div class="text-[10px] text-ink-muted">/100</div>
+              </div>
+            </div>
+
+            <!-- 점수 바 -->
+            <div class="w-full bg-oat-light rounded-full h-2">
+              <div class="h-2 rounded-full transition-all duration-500"
+                :style="'width:' + item.opportunity_score + '%'"
+                :class="item.opportunity_score>=70 ? 'bg-matcha' : item.opportunity_score>=50 ? 'bg-lemon' : 'bg-ink-muted'"></div>
+            </div>
+
+            <!-- 지표 -->
+            <div class="grid grid-cols-3 gap-2 text-center">
+              <div class="clay-card-sm p-2">
+                <div class="text-[9px] text-ink-muted">추정 CPM</div>
+                <div class="text-xs font-bold text-ink" x-text="'$' + item.estimated_cpm.toFixed(1)"></div>
+              </div>
+              <div class="clay-card-sm p-2">
+                <div class="text-[9px] text-ink-muted">평균 조회수</div>
+                <div class="text-xs font-bold text-ink" x-text="fmt(item.avg_views)"></div>
+              </div>
+              <div class="clay-card-sm p-2">
+                <div class="text-[9px] text-ink-muted">진입 난이도</div>
+                <div class="text-xs font-bold"
+                  :class="item.entry_difficulty==='쉬움' ? 'text-matcha' : item.entry_difficulty==='어려움' ? 'text-pom' : 'text-lemon'"
+                  x-text="item.entry_difficulty"></div>
+              </div>
+            </div>
+
+            <!-- 소형채널 비율 -->
+            <div class="text-[10px] text-ink-muted">
+              소형 채널(10만↓) 비율: <span class="font-semibold text-ink" x-text="item.small_channel_ratio + '%'"></span>
+              · 분석 영상 <span x-text="item.video_count + '개'"></span>
+            </div>
+
+            <!-- 상위 영상 -->
+            <template x-if="item.top_videos && item.top_videos.length">
+              <div class="space-y-1">
+                <div class="text-[9px] font-semibold text-ink-muted uppercase tracking-wide">스파이크 상위 영상</div>
+                <template x-for="v in item.top_videos" :key="v.video_id">
+                  <a :href="'https://www.youtube.com/watch?v=' + v.video_id" target="_blank"
+                    class="flex items-center gap-2 py-1 hover:opacity-80 transition-opacity">
+                    <img :src="v.thumbnail" class="w-12 h-[30px] object-cover rounded bg-oat-light shrink-0" loading="lazy" />
+                    <div class="flex-1 min-w-0">
+                      <div class="text-[10px] text-ink font-medium line-clamp-1" x-text="v.title"></div>
+                      <div class="text-[9px] text-ink-muted" x-text="v.channel + ' · ' + fmt(v.view_count) + '뷰'"></div>
+                    </div>
+                    <div class="text-[9px] text-pom font-bold shrink-0" x-text="'⚡' + v.spike_score"></div>
+                  </a>
+                </template>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <div x-show="opportunityData.opportunities.length === 0"
+          class="text-center text-[11px] text-ink-muted py-6">
+          선택 기간 내 수집된 데이터가 없습니다.<br>먼저 트렌딩 데이터를 수집해주세요.
+        </div>
       </div>
     </template>
   </div>
@@ -950,6 +1344,248 @@
 
 </main>
 
+<!-- ── 지표 가이드 모달 ──────────────────────────────────────── -->
+<div x-show="showGuide" x-cloak @click.self="showGuide=false"
+  class="fixed inset-0 z-50 modal-backdrop flex items-end md:items-center justify-center">
+  <div class="bg-white border border-oat rounded-t-3xl md:rounded-3xl w-full md:max-w-lg max-h-[90vh] overflow-y-auto thin-scroll fade-in"
+    style="box-shadow:0 -4px 32px rgba(0,0,0,.12)" @click.stop>
+
+    <!-- 헤더 -->
+    <div class="flex items-center justify-between px-5 py-4 border-b border-oat sticky top-0 bg-white rounded-t-3xl">
+      <div class="flex items-center gap-2">
+        <span class="text-lg">📖</span>
+        <span class="font-extrabold text-sm text-ink">지표 가이드</span>
+      </div>
+      <button @click="showGuide=false" class="text-ink-muted hover:text-ink text-xl leading-none">✕</button>
+    </div>
+
+    <!-- 섹션 탭 -->
+    <div class="flex gap-1.5 px-4 pt-3 overflow-x-auto hide-scrollbar">
+      <template x-for="s in [
+        {key:'spike',  label:'⚡ 스파이크'},
+        {key:'trust',  label:'🛡 신뢰도'},
+        {key:'oppo',   label:'💰 부업기회'},
+        {key:'engage', label:'📊 참여지표'},
+      ]">
+        <button @click="guideSection=s.key"
+          :class="guideSection===s.key ? 'bg-ink text-white' : 'bg-oat-light text-ink-muted'"
+          class="text-[10px] px-3 py-1.5 rounded-full whitespace-nowrap font-semibold transition shrink-0"
+          x-text="s.label"></button>
+      </template>
+    </div>
+
+    <div class="px-4 py-4 space-y-3">
+
+      <!-- ── 스파이크 점수 ── -->
+      <div x-show="guideSection==='spike'" class="space-y-3">
+        <p class="text-[11px] text-ink-muted leading-relaxed">
+          영상이 얼마나 빠르게, 강하게 주목받고 있는지를 나타내는 종합 점수입니다.<br>
+          단순 조회수가 아닌 <strong>성장 속도와 품질</strong>을 함께 측정합니다.
+        </p>
+
+        <div class="clay-card-sm p-3 space-y-2">
+          <div class="flex items-center gap-2">
+            <span class="text-base">⚡</span>
+            <span class="font-bold text-sm text-ink">스파이크 점수 (0~100)</span>
+          </div>
+          <div class="space-y-1.5 text-[11px]">
+            <div class="flex gap-2"><span class="w-20 shrink-0 font-semibold text-matcha">80~100</span><span class="text-ink-soft">폭발적 급상승 — 알고리즘이 강하게 밀고 있는 상태</span></div>
+            <div class="flex gap-2"><span class="w-20 shrink-0 font-semibold text-lemon">50~79</span><span class="text-ink-soft">유의미한 상승 — 트렌드 초입 또는 지속 인기</span></div>
+            <div class="flex gap-2"><span class="w-20 shrink-0 font-semibold text-ink-muted">0~49</span><span class="text-ink-soft">일반 급상승 차트 진입 수준</span></div>
+          </div>
+          <div class="bg-oat-light rounded-xl p-2.5 text-[10px] text-ink-muted">
+            <strong>계산 방식</strong><br>
+            하루 조회수 증가 (40점) + 시간당 조회수 속도 (20점) + 참여율 (20점) + 바이럴 계수 (10점) + 지속 인기 보너스 (10점)
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <div class="clay-card-sm p-3">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-sm">📈</span>
+              <span class="font-bold text-xs text-ink">하루 조회수 증가 (view_gain_1d)</span>
+            </div>
+            <p class="text-[11px] text-ink-soft">어제 대비 오늘 조회수 증가량. 갑자기 50만뷰 이상 늘었다면 폭발적 바이럴 상태.</p>
+          </div>
+          <div class="clay-card-sm p-3">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-sm">🕐</span>
+              <span class="font-bold text-xs text-ink">시간당 조회수 속도 (view_velocity)</span>
+            </div>
+            <p class="text-[11px] text-ink-soft">업로드 이후 평균 시간당 조회수. 100/h = 조용한 성장, 10,000/h = 알고리즘 픽업 중.</p>
+          </div>
+          <div class="clay-card-sm p-3">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-sm">💥</span>
+              <span class="font-bold text-xs text-ink">바이럴 계수 (viral_coefficient)</span>
+            </div>
+            <p class="text-[11px] text-ink-soft">조회수 ÷ 구독자 수. 구독자 1만인 채널이 100만뷰라면 계수 = 100. <strong>소형 채널이 대형 채널보다 높게 나오면 진짜 바이럴.</strong></p>
+          </div>
+          <div class="clay-card-sm p-3">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-sm">🏆</span>
+              <span class="font-bold text-xs text-ink">연속 급상승 일수 (trending_days)</span>
+            </div>
+            <p class="text-[11px] text-ink-soft">며칠째 급상승 차트에 머물고 있는지. 3일 이상이면 일시적 유행이 아닌 지속 인기.</p>
+          </div>
+        </div>
+
+        <div class="clay-card-sm p-3 bg-[#f5f0ff]">
+          <div class="text-[10px] font-bold text-ube mb-1">급등 원인 레이블</div>
+          <div class="space-y-1 text-[10px]">
+            <div><span class="font-semibold">🚀 신규 급등</span> — 업로드 48시간 이내에 트렌드 진입</div>
+            <div><span class="font-semibold">🔄 재급등</span> — 30일+ 된 영상이 다시 알고리즘에 올라탄 경우</div>
+            <div><span class="font-semibold">📈 폭발적 증가</span> — 하루 50만뷰 이상 증가</div>
+            <div><span class="font-semibold">💥 소채널 돌파</span> — 구독자 대비 5배 이상 조회수</div>
+            <div><span class="font-semibold">❤️ 높은 반응</span> — 좋아요율 5% 이상 (평균의 3~5배)</div>
+            <div><span class="font-semibold">🏆 지속 인기</span> — 3일 이상 급상승 유지</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── 신뢰도 점수 ── -->
+      <div x-show="guideSection==='trust'" class="space-y-3">
+        <p class="text-[11px] text-ink-muted leading-relaxed">
+          뷰봇이나 조작된 조회수를 걸러내는 지표입니다.<br>
+          <strong>60점 미만이면 의심 영상</strong>으로 분류되어 큐레이션에서 제외됩니다.
+        </p>
+
+        <div class="clay-card-sm p-3 space-y-2">
+          <div class="flex items-center gap-2">
+            <span class="text-base">🛡</span>
+            <span class="font-bold text-sm text-ink">신뢰도 점수 (0~100)</span>
+          </div>
+          <div class="space-y-1.5 text-[11px]">
+            <div class="flex gap-2"><span class="w-20 shrink-0 font-semibold text-matcha">80~100</span><span class="text-ink-soft">정상 영상 — 자연스러운 참여율</span></div>
+            <div class="flex gap-2"><span class="w-20 shrink-0 font-semibold text-lemon">60~79</span><span class="text-ink-soft">주의 — 일부 이상 신호가 있으나 허용 범위</span></div>
+            <div class="flex gap-2"><span class="w-20 shrink-0 font-semibold text-pom">0~59</span><span class="text-ink-soft">의심 — 뷰봇 또는 조작 가능성 높음</span></div>
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <div class="clay-card-sm p-3 border-l-4 border-pom/60">
+            <div class="text-xs font-bold text-ink mb-1">🚨 신호 1: 좋아요율 이상</div>
+            <p class="text-[11px] text-ink-soft">YouTube 평균 좋아요율은 0.5~3%. 조회수 5만 이상인데 0.03% 미만이면 35점 차감.</p>
+            <p class="text-[10px] text-ink-muted mt-1 italic">뷰봇은 조회수만 올리고 좋아요는 누르지 않기 때문.</p>
+          </div>
+          <div class="clay-card-sm p-3 border-l-4 border-pom/60">
+            <div class="text-xs font-bold text-ink mb-1">🚨 신호 2: 참여 완전 공백</div>
+            <p class="text-[11px] text-ink-soft">조회수 10만 이상인데 좋아요와 댓글이 동시에 0개면 40점 차감.</p>
+          </div>
+          <div class="clay-card-sm p-3 border-l-4 border-lemon/60">
+            <div class="text-xs font-bold text-ink mb-1">⚠️ 신호 3: 신생 채널 이상 급등</div>
+            <p class="text-[11px] text-ink-soft">구독자 500명 미만 채널에 100만뷰 이상이면 40점 차감. 자연 성장으로 불가능한 수치.</p>
+          </div>
+          <div class="clay-card-sm p-3 border-l-4 border-lemon/60">
+            <div class="text-xs font-bold text-ink mb-1">⚠️ 신호 4: 초고속 유입 + 참여율 역전</div>
+            <p class="text-[11px] text-ink-soft">시간당 1만뷰 이상인데 좋아요율 0.05% 미만이면 25점 차감. 진짜 인기 영상은 빠를수록 반응도 뜨겁다.</p>
+          </div>
+        </div>
+
+        <div class="bg-[#f0fdf7] border border-matcha/20 rounded-xl p-3 text-[10px] text-ink-soft leading-relaxed">
+          <strong class="text-matcha">큐레이션 탭</strong>에서 신뢰도 기준을 조정할 수 있어요.<br>
+          · 느슨하게(40+): 더 많은 영상 포함<br>
+          · 엄격하게(75+): 확실히 신뢰도 높은 영상만
+        </div>
+      </div>
+
+      <!-- ── 부업 기회 점수 ── -->
+      <div x-show="guideSection==='oppo'" class="space-y-3">
+        <p class="text-[11px] text-ink-muted leading-relaxed">
+          유튜브로 부업 수익을 내기에 얼마나 좋은 카테고리인지 측정합니다.<br>
+          <strong>CPM</strong>(광고 단가) + <strong>성장성</strong> + <strong>진입 난이도</strong> + <strong>참여율</strong>을 종합합니다.
+        </p>
+
+        <div class="clay-card-sm p-3 space-y-2">
+          <div class="flex items-center gap-2">
+            <span class="text-base">💰</span>
+            <span class="font-bold text-sm text-ink">부업 기회 점수 (0~100)</span>
+          </div>
+          <div class="space-y-1 text-[11px]">
+            <div class="flex justify-between"><span class="text-ink-soft">CPM 점수</span><span class="font-semibold">최대 30점</span></div>
+            <div class="flex justify-between"><span class="text-ink-soft">성장성 점수</span><span class="font-semibold">최대 30점</span></div>
+            <div class="flex justify-between"><span class="text-ink-soft">진입 난이도</span><span class="font-semibold">최대 20점</span></div>
+            <div class="flex justify-between"><span class="text-ink-soft">참여율</span><span class="font-semibold">최대 20점</span></div>
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <div class="clay-card-sm p-3">
+            <div class="text-xs font-bold text-ink mb-1">💵 CPM (Cost Per Mille)</div>
+            <p class="text-[11px] text-ink-soft mb-2">광고주가 1,000회 노출당 지불하는 금액. 높을수록 같은 조회수에 더 많이 번다.</p>
+            <div class="space-y-1 text-[10px] bg-oat-light rounded-lg p-2">
+              <div class="flex justify-between"><span>IT/테크 (28)</span><span class="font-bold text-matcha">~$8</span></div>
+              <div class="flex justify-between"><span>교육 (27)</span><span class="font-bold text-matcha">~$6</span></div>
+              <div class="flex justify-between"><span>노하우/스타일 (26)</span><span class="font-bold text-lemon">~$5</span></div>
+              <div class="flex justify-between"><span>뉴스 (25)</span><span class="font-bold text-lemon">~$5.5</span></div>
+              <div class="flex justify-between text-ink-muted"><span>기타</span><span>~$3</span></div>
+            </div>
+            <p class="text-[10px] text-ink-muted mt-1 italic">* 추정값. 실제 CPM은 시즌·광고주·시청자 국가에 따라 달라집니다.</p>
+          </div>
+          <div class="clay-card-sm p-3">
+            <div class="text-xs font-bold text-ink mb-1">🚪 진입 난이도</div>
+            <p class="text-[11px] text-ink-soft">소형 채널(구독자 10만 미만)이 상위 랭크에 오른 비율. 소형 채널이 많을수록 <strong>신규 진입자에게 유리한 시장</strong>.</p>
+            <div class="text-[10px] text-ink-muted mt-1">쉬움: 소형 채널 60%↑ / 보통: 30~60% / 어려움: 30%↓</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── 참여 지표 ── -->
+      <div x-show="guideSection==='engage'" class="space-y-3">
+        <p class="text-[11px] text-ink-muted leading-relaxed">
+          시청자가 영상에 얼마나 적극적으로 반응하는지 측정합니다.<br>
+          참여율이 높은 영상은 알고리즘이 더 많이 추천합니다.
+        </p>
+
+        <div class="space-y-2">
+          <div class="clay-card-sm p-3">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-sm">❤️</span>
+              <span class="font-bold text-xs text-ink">참여율 (engagement_rate)</span>
+            </div>
+            <p class="text-[11px] text-ink-soft">좋아요 수 ÷ 조회수 × 100. 퍼센트로 표시.</p>
+            <div class="mt-1.5 space-y-1 text-[10px]">
+              <div class="flex gap-2"><span class="w-16 shrink-0 font-semibold text-matcha">5%↑</span><span class="text-ink-soft">매우 높음 — 강한 팬덤 또는 논란성 콘텐츠</span></div>
+              <div class="flex gap-2"><span class="w-16 shrink-0 font-semibold text-lemon">1~5%</span><span class="text-ink-soft">정상 범위 — 건강한 참여</span></div>
+              <div class="flex gap-2"><span class="w-16 shrink-0 font-semibold text-ink-muted">0.5~1%</span><span class="text-ink-soft">낮은 편 — 추천 유입이 많은 영상에서 흔함</span></div>
+              <div class="flex gap-2"><span class="w-16 shrink-0 font-semibold text-pom">0.1%↓</span><span class="text-ink-soft">비정상 — 뷰봇 의심 또는 음악·배경음 영상</span></div>
+            </div>
+          </div>
+
+          <div class="clay-card-sm p-3">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-sm">📊</span>
+              <span class="font-bold text-xs text-ink">조회수 규모 읽는 법</span>
+            </div>
+            <div class="space-y-1 text-[10px]">
+              <div class="flex gap-2"><span class="w-12 shrink-0 font-mono font-bold">1K</span><span class="text-ink-soft">1,000회</span></div>
+              <div class="flex gap-2"><span class="w-12 shrink-0 font-mono font-bold">10K</span><span class="text-ink-soft">1만회</span></div>
+              <div class="flex gap-2"><span class="w-12 shrink-0 font-mono font-bold">100K</span><span class="text-ink-soft">10만회 — 알고리즘 픽업 기준선</span></div>
+              <div class="flex gap-2"><span class="w-12 shrink-0 font-mono font-bold">1M</span><span class="text-ink-soft">100만회 — 바이럴 기준선</span></div>
+              <div class="flex gap-2"><span class="w-12 shrink-0 font-mono font-bold">10M</span><span class="text-ink-soft">1,000만회 — 메가 히트</span></div>
+            </div>
+          </div>
+
+          <div class="clay-card-sm p-3">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-sm">🎯</span>
+              <span class="font-bold text-xs text-ink">AI 제작 적합 영상의 특징</span>
+            </div>
+            <div class="space-y-1.5 text-[11px] text-ink-soft">
+              <div class="flex gap-2"><span class="shrink-0">✓</span><span>참여율 1~3% 수준 (자연스럽고 재현 가능)</span></div>
+              <div class="flex gap-2"><span class="shrink-0">✓</span><span>롱폼 영상 (3~15분) — 스크립트 구조가 명확</span></div>
+              <div class="flex gap-2"><span class="shrink-0">✓</span><span>소형 채널(10만↓)이 10만뷰+ 달성 — 진입 가능성 증명</span></div>
+              <div class="flex gap-2"><span class="shrink-0">✓</span><span>연속 급상승 2일↑ — 일시적 노이즈가 아닌 수요 존재</span></div>
+              <div class="flex gap-2"><span class="shrink-0">✓</span><span>신뢰도 75↑ — 조작 없는 진짜 반응</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 <!-- ── 영상 상세 모달 ────────────────────────────────────────── -->
 <div x-show="detailVideo" x-cloak @click.self="closeDetail()"
   class="fixed inset-0 z-50 modal-backdrop flex items-end md:items-center justify-center">
@@ -1097,15 +1733,17 @@ function app() {
     periods: [{key:'day',label:'일'},{key:'week',label:'주'},{key:'month',label:'월'}],
     activeTab: 'trending',
     tabs: [
-      {key:'brief',    icon:'💡', label:'브리프'},
-      {key:'topic',    icon:'🎯', label:'심층분석'},
-      {key:'trending', icon:'📊', label:'급상승'},
-      {key:'spikes',   icon:'🚀', label:'스파이크'},
-      {key:'copyable', icon:'📋', label:'모방가능'},
-      {key:'keywords', icon:'🔑', label:'키워드'},
-      {key:'signals',  icon:'🌍', label:'선행감지'},
-      {key:'compare',  icon:'📅', label:'비교'},
-      {key:'stats',    icon:'📈', label:'통계'},
+      {key:'brief',       icon:'💡', label:'브리프'},
+      {key:'topic',       icon:'🎯', label:'심층분석'},
+      {key:'opportunity', icon:'💰', label:'부업기회'},
+      {key:'curated',     icon:'✅', label:'큐레이션'},
+      {key:'trending',    icon:'📊', label:'급상승'},
+      {key:'spikes',      icon:'🚀', label:'스파이크'},
+      {key:'copyable',    icon:'📋', label:'모방가능'},
+      {key:'keywords',    icon:'🔑', label:'키워드'},
+      {key:'signals',     icon:'🌍', label:'선행감지'},
+      {key:'compare',     icon:'📅', label:'비교'},
+      {key:'stats',       icon:'📈', label:'통계'},
     ],
     searchQuery: '', sortKey: 'rank',
     excludeMusic: true, selectedCategory: 0, videoType: 'all',
@@ -1125,6 +1763,19 @@ function app() {
     topicInput: '', topicRegion: 'KR', topicDays: 30,
     topicResult: null, topicLoading: false, topicError: null,
     topicSection: 'overview',
+    // 심층분석 고급 필터
+    topicVideoType: 'all', topicMinViews: 0, topicSubscriberTier: 'all',
+    topicSortBy: 'view_count', topicCompareTopic: '', topicShowAdvanced: false,
+    // 부업 기회 분석
+    opportunityData: null, opportunityLoading: false, opportunityDays: 7,
+    // 큐레이션
+    curatedData: null, curatedLoading: false, curatedPeriod: 3, curatedMinTrust: 60,
+    curatedOpenCat: null,
+    // 가이드
+    showGuide: false, guideSection: 'spike',
+    // 동적 키워드 관리
+    myKeywords: [], myKeywordsLoading: false, newKeyword: '', newKeywordRegion: 'KR',
+    keywordCollecting: false,
 
     // 인증
     currentUser: null,
@@ -1213,13 +1864,95 @@ function app() {
         const r = await fetch('/api/topic/analyze', {
           method: 'POST',
           headers: {'Content-Type': 'application/json', ...this.authHeaders()},
-          body: JSON.stringify({topic, region: this.topicRegion, days: this.topicDays, limit: 30})
+          body: JSON.stringify({
+            topic,
+            region: this.topicRegion,
+            days: this.topicDays,
+            limit: 30,
+            video_type: this.topicVideoType,
+            min_views: this.topicMinViews,
+            max_subscriber_tier: this.topicSubscriberTier,
+            sort_by: this.topicSortBy,
+            compare_topic: this.topicCompareTopic,
+          })
         })
         if (!r.ok) { const e = await r.json(); throw new Error(e.detail || r.statusText) }
         this.topicResult = await r.json()
         this.topicSection = 'overview'
       } catch(e) { this.topicError = e.message }
       this.topicLoading = false
+    },
+
+    async loadCurated() {
+      this.curatedLoading = true
+      try {
+        const r = await fetch(
+          `/api/trending/curated?region=${this.region}&period=${this.curatedPeriod}&min_trust=${this.curatedMinTrust}`,
+          {headers: this.authHeaders()}
+        )
+        if (!r.ok) { const e = await r.json(); throw new Error(e.detail || r.statusText) }
+        this.curatedData = await r.json()
+        if (this.curatedData.categories.length > 0) {
+          this.curatedOpenCat = this.curatedData.categories[0].category_id
+        }
+      } catch(e) { console.error('[curated]', e.message) }
+      this.curatedLoading = false
+    },
+
+    async loadOpportunity() {
+      this.opportunityLoading = true
+      try {
+        const r = await fetch(`/api/trending/opportunity?region=${this.region}&days=${this.opportunityDays}`, {
+          headers: this.authHeaders()
+        })
+        if (!r.ok) { const e = await r.json(); throw new Error(e.detail || r.statusText) }
+        this.opportunityData = await r.json()
+      } catch(e) { console.error('[opportunity]', e.message) }
+      this.opportunityLoading = false
+    },
+
+    async loadMyKeywords() {
+      this.myKeywordsLoading = true
+      try {
+        const r = await fetch('/api/keywords/my', {headers: this.authHeaders()})
+        if (r.ok) this.myKeywords = await r.json()
+      } catch(e) {}
+      this.myKeywordsLoading = false
+    },
+
+    async addMyKeyword() {
+      const kw = this.newKeyword.trim()
+      if (!kw) return
+      try {
+        const r = await fetch('/api/keywords/my', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json', ...this.authHeaders()},
+          body: JSON.stringify({keyword: kw, region: this.newKeywordRegion})
+        })
+        if (r.ok) {
+          this.newKeyword = ''
+          await this.loadMyKeywords()
+        }
+      } catch(e) {}
+    },
+
+    async deleteMyKeyword(id) {
+      try {
+        await fetch('/api/keywords/my/' + id, {method: 'DELETE', headers: this.authHeaders()})
+        this.myKeywords = this.myKeywords.filter(k => k.id !== id)
+      } catch(e) {}
+    },
+
+    async collectMyKeywords() {
+      this.keywordCollecting = true
+      try {
+        const r = await fetch('/api/keywords/collect', {method: 'POST', headers: this.authHeaders()})
+        if (r.ok) {
+          const d = await r.json()
+          alert(`수집 시작됨 — ${d.count}개 키워드`)
+        }
+      } catch(e) {}
+      this.keywordCollecting = false
     },
 
     trendColor(s) {

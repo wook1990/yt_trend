@@ -15,6 +15,12 @@ class TopicRequest(BaseModel):
     region: str = "KR"
     days: int = 30
     limit: int = 30
+    # 고급 필터
+    video_type: str = "all"           # "all" | "short" | "long"
+    min_views: int = 0                # 최소 조회수 (0=제한없음)
+    max_subscriber_tier: str = "all"  # "all" | "small"(<10만) | "mid"(<100만) | "large"(≥100만)
+    sort_by: str = "view_count"       # "view_count" | "upload_date" | "engagement"
+    compare_topic: str = ""           # 비교 주제 (비어있으면 단일 분석)
 
 
 @router.post("/analyze", response_model=None)
@@ -39,6 +45,11 @@ def analyze_topic(req: TopicRequest) -> dict[str, Any]:
             region=req.region,
             days=req.days,
             search_limit=min(req.limit, 50),
+            video_type=req.video_type,
+            min_views=req.min_views,
+            max_subscriber_tier=req.max_subscriber_tier,
+            sort_by=req.sort_by,
+            compare_topic=req.compare_topic.strip(),
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

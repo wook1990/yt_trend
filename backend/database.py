@@ -49,9 +49,15 @@ def init_db():
 
 def _migrate_sqlite():
     """SQLite 전용: 기존 DB에 새 컬럼 추가."""
+    migrations = [
+        "ALTER TABLE trending_snapshots ADD COLUMN title_ko VARCHAR(500)",
+        "ALTER TABLE trending_snapshots ADD COLUMN trust_score INTEGER",
+        "ALTER TABLE trending_snapshots ADD COLUMN trust_flags TEXT",
+    ]
     with engine.connect() as conn:
-        try:
-            conn.execute(text("ALTER TABLE trending_snapshots ADD COLUMN title_ko VARCHAR(500)"))
-            conn.commit()
-        except Exception:
-            pass
+        for sql in migrations:
+            try:
+                conn.execute(text(sql))
+                conn.commit()
+            except Exception:
+                pass  # 이미 존재하는 컬럼이면 무시

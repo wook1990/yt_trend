@@ -581,6 +581,9 @@ def _to_dict(r: TrendingSnapshot) -> dict[str, Any]:
         "trending_days":    r.trending_days,
         "spike_score":      r.spike_score,
         "spike_reasons":    reasons,
+        # 신뢰도 지표
+        "trust_score":      r.trust_score,
+        "trust_flags":      json.loads(r.trust_flags) if r.trust_flags else [],
     }
 
 
@@ -615,3 +618,209 @@ def _get_videos_for_date(
             seen[r.video_id] = _to_dict(r)
 
     return list(seen.values())
+
+
+# ─── 카테고리별 큐레이션 (신뢰도 필터 적용, 20개/카테고리) ────────────────────
+
+@router.get("/trending/curated")
+def get_curated(
+    region:        str = Query("KR"),
+    date_str:      str = Query(None, alias="date"),
+    period:        int = Query(3, ge=1, le=14, description="수집 기간(일)"),
+    per_category:  int = Query(20, ge=5, le=50),
+    min_trust:     int = Query(60, ge=0, le=100, description="최소 신뢰도 점수"),
+    db:            Session = Depends(get_db),
+) -> dict[str, Any]:
+    """
+    카테고리별 신뢰도 필터 후 상위 N개 영상 반환.
+    - 뷰봇/사기 영상(trust_score < min_trust) 제거
+    - spike_score 기준 상위 per_category개 선택
+    """
+    end   = _parse_date(date_str) or date.today()
+    start = end - timedelta(days=period - 1)
+
+    rows = (
+        db.query(TrendingSnapshot)
+        .filter(
+            TrendingSnapshot.captured_date >= start,
+            TrendingSnapshot.captured_date <= end,
+            TrendingSnapshot.region == region,
+            TrendingSnapshot.category_id.notin_(ENTERTAINMENT_CATEGORY_IDS),
+        )
+        .all()
+    )
+
+    # 영상 중복 제거 (video_id 기준 최고 spike_score 스냅샷 유지)
+    best: dict[str, TrendingSnapshot] = {}
+    for r in rows:
+        vid = r.video_id
+        if vid not in best or (r.spike_score or 0) > (best[vid].spike_score or 0):
+            best[vid] = r
+
+    # 신뢰도 필터
+    trusted = [r for r in best.values() if (r.trust_score is None or r.trust_score >= min_trust)]
+    filtered_out = len(best) - len(trusted)
+
+    # 카테고리별 그룹핑 → 각 그룹 spike_score 내림차순 → 상위 per_category개
+    from collections import defaultdict
+    from backend.models import CATEGORY_NAMES
+
+    cat_groups: dict[int, list[TrendingSnapshot]] = defaultdict(list)
+    for r in trusted:
+        cat_groups[r.category_id].append(r)
+
+    categories_out = []
+    for cat_id, cat_rows in cat_groups.items():
+        sorted_rows = sorted(cat_rows, key=lambda r: r.spike_score or 0, reverse=True)
+        top = sorted_rows[:per_category]
+        categories_out.append({
+            "category_id":   cat_id,
+            "category_name": CATEGORY_NAMES.get(cat_id, str(cat_id)),
+            "total_found":   len(cat_rows),
+            "showing":       len(top),
+            "videos":        [_to_dict(r) for r in top],
+        })
+
+    # 카테고리를 영상 수 내림차순 정렬
+    categories_out.sort(key=lambda c: c["total_found"], reverse=True)
+
+    return {
+        "date":              end.isoformat(),
+        "region":            region,
+        "period_days":       period,
+        "min_trust_score":   min_trust,
+        "total_before_filter": len(best),
+        "filtered_out":      filtered_out,
+        "total_after_filter": len(trusted),
+        "categories":        categories_out,
+    }
+
+
+# ─── 부업 적합도 분석 ─────────────────────────────────────────────────────────
+
+# 카테고리별 추정 CPM (USD 기준, 한국 크리에이터 경험치 기반)
+_CPM_TABLE: dict[int, float] = {
+    28: 8.0,   # IT/테크
+    27: 6.0,   # 교육
+    25: 5.5,   # 뉴스/시사
+    26: 5.0,   # 노하우/스킬
+    15: 4.5,   # 반려동물
+    0:  3.0,   # 기타
+}
+
+_CPM_TIER = {
+    28: "high", 27: "high", 25: "mid", 26: "mid", 15: "mid", 0: "low",
+}
+
+_COLLECT_CATEGORY_IDS = [25, 27, 28, 26, 15]
+
+
+@router.get("/trending/opportunity")
+def get_opportunity(
+    region:   str     = Query("KR"),
+    date_str: str     = Query(None, alias="date"),
+    days:     int     = Query(7, ge=1, le=30),
+    db:       Session = Depends(get_db),
+) -> dict[str, Any]:
+    """
+    카테고리별 부업 적합도 점수 분석.
+    수집된 trending 데이터를 기반으로 CPM·성장성·진입난이도·참여율 복합 점수 산출.
+    """
+    end = _parse_date(date_str) or date.today()
+    start = end - timedelta(days=days - 1)
+
+    rows = (
+        db.query(TrendingSnapshot)
+        .filter(
+            TrendingSnapshot.captured_date >= start,
+            TrendingSnapshot.captured_date <= end,
+            TrendingSnapshot.region == region,
+            TrendingSnapshot.category_id.in_(_COLLECT_CATEGORY_IDS),
+        )
+        .all()
+    )
+
+    if not rows:
+        return {"date": end.isoformat(), "region": region, "opportunities": []}
+
+    # 카테고리별 집계
+    from collections import defaultdict
+    cat_groups: dict[int, list[TrendingSnapshot]] = defaultdict(list)
+    seen_per_cat: dict[int, set[str]] = defaultdict(set)
+    for r in rows:
+        vid = r.video_id
+        cid = r.category_id
+        if vid not in seen_per_cat[cid]:
+            seen_per_cat[cid].add(vid)
+            cat_groups[cid].append(r)
+
+    opportunities = []
+    for cat_id, cat_rows in cat_groups.items():
+        if not cat_rows:
+            continue
+
+        avg_views = sum(r.view_count or 0 for r in cat_rows) / len(cat_rows)
+        avg_velocity = sum(r.view_velocity or 0 for r in cat_rows) / len(cat_rows)
+        avg_spike = sum(r.spike_score or 0 for r in cat_rows) / len(cat_rows)
+        avg_engagement = sum(r.engagement_rate or 0 for r in cat_rows) / len(cat_rows)
+
+        # 소형 채널 비율 (구독자 10만 미만)
+        has_sub = [r for r in cat_rows if r.subscriber_count is not None]
+        small_ratio = (
+            sum(1 for r in has_sub if (r.subscriber_count or 0) < 100_000) / len(has_sub)
+            if has_sub else 0.5
+        )
+
+        # 점수 계산 (100점 만점)
+        cpm = _CPM_TABLE.get(cat_id, _CPM_TABLE[0])
+        cpm_score = min(cpm / 8.0 * 30, 30)                          # CPM 30점
+        growth_score = min((avg_velocity / 5000 + avg_spike / 100) * 15, 30)  # 성장성 30점
+        entry_score = small_ratio * 20                                # 진입 난이도 20점 (소형채널 많을수록 진입 쉬움)
+        engagement_score = min(avg_engagement * 500, 20)              # 참여율 20점
+
+        total_score = round(cpm_score + growth_score + entry_score + engagement_score)
+
+        # 진입 난이도 레이블
+        if small_ratio >= 0.6:
+            entry_difficulty = "쉬움"
+        elif small_ratio >= 0.3:
+            entry_difficulty = "보통"
+        else:
+            entry_difficulty = "어려움"
+
+        # 상위 영상 3개
+        top_videos = sorted(cat_rows, key=lambda r: r.spike_score or 0, reverse=True)[:3]
+
+        from backend.models import CATEGORY_NAMES
+        opportunities.append({
+            "category_id":       cat_id,
+            "category_name":     CATEGORY_NAMES.get(cat_id, str(cat_id)),
+            "opportunity_score": min(total_score, 100),
+            "cpm_tier":          _CPM_TIER.get(cat_id, "low"),
+            "estimated_cpm":     cpm,
+            "avg_views":         round(avg_views),
+            "entry_difficulty":  entry_difficulty,
+            "small_channel_ratio": round(small_ratio * 100),
+            "video_count":       len(cat_rows),
+            "top_videos": [
+                {
+                    "video_id":    r.video_id,
+                    "title":       r.title,
+                    "channel":     r.channel_name,
+                    "view_count":  r.view_count,
+                    "spike_score": round(r.spike_score or 0, 1),
+                    "thumbnail":   r.thumbnail,
+                }
+                for r in top_videos
+            ],
+        })
+
+    # 점수 내림차순 정렬
+    opportunities.sort(key=lambda x: x["opportunity_score"], reverse=True)
+
+    return {
+        "date":          end.isoformat(),
+        "region":        region,
+        "period_days":   days,
+        "opportunities": opportunities,
+    }

@@ -1,7 +1,7 @@
 """backend/models.py — DB 테이블 정의"""
 
 from datetime import date, datetime
-from sqlalchemy import BigInteger, Date, DateTime, Float, Integer, String, Text, UniqueConstraint
+from sqlalchemy import BigInteger, Boolean, Date, DateTime, Float, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from backend.database import Base
 
@@ -42,6 +42,10 @@ class TrendingSnapshot(Base):
     trending_days:      Mapped[int]          = mapped_column(Integer, default=1)
     spike_score:        Mapped[float | None] = mapped_column(Float, nullable=True)
     spike_reasons:      Mapped[str | None]   = mapped_column(Text, nullable=True)  # JSON
+
+    # 신뢰도 지표 (뷰봇/사기 영상 필터링)
+    trust_score:        Mapped[int | None]   = mapped_column(Integer, nullable=True)
+    trust_flags:        Mapped[str | None]   = mapped_column(Text, nullable=True)   # JSON
 
 
 class TrendBrief(Base):
@@ -84,6 +88,20 @@ class SignupRequest(Base):
     requested_at: Mapped[datetime]      = mapped_column(DateTime)
     reviewed_at:  Mapped[datetime|None] = mapped_column(DateTime, nullable=True)
     reviewed_by:  Mapped[str|None]      = mapped_column(String(50), nullable=True)
+
+
+class UserKeyword(Base):
+    """사용자 정의 수집 키워드."""
+    __tablename__ = "user_keywords"
+    __table_args__ = (UniqueConstraint("user_id", "keyword"),)
+
+    id:                Mapped[int]           = mapped_column(Integer, primary_key=True)
+    user_id:           Mapped[int]           = mapped_column(Integer, index=True)
+    keyword:           Mapped[str]           = mapped_column(String(100))
+    region:            Mapped[str]           = mapped_column(String(2), default="KR")
+    is_active:         Mapped[bool]          = mapped_column(Boolean, default=True)
+    created_at:        Mapped[datetime]      = mapped_column(DateTime)
+    last_collected_at: Mapped[datetime|None] = mapped_column(DateTime, nullable=True)
 
 
 CATEGORY_NAMES = {

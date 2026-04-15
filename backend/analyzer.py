@@ -184,6 +184,84 @@ def _score(
     return min(100, score)
 
 
+# ─── 신뢰도 (뷰봇/사기 영상 감지) ───────────────────────────────────────────
+
+def compute_trust(
+    view_count: int,
+    like_count: int | None,
+    comment_count: int | None,
+    subscriber_count: int | None,
+    view_velocity: float | None,
+) -> tuple[int, list[str]]:
+    """
+    뷰봇/사기 영상 신뢰도 점수 계산.
+
+    Returns:
+        (trust_score 0~100, 의심 신호 목록)
+        trust_score 60 미만 → 의심 영상으로 분류
+    """
+    flags: list[str] = []
+    deduct = 0
+
+    if view_count < 1000:
+        # 조회수가 너무 낮으면 판단 보류 (신뢰도 영향 없음)
+        return 80, []
+
+    likes = like_count or 0
+    comments = comment_count or 0
+    subs = subscriber_count or 0
+
+    like_rate = likes / view_count if view_count else 0
+    comment_rate = comments / view_count if view_count else 0
+
+    # ── 신호 1: 좋아요율 극단 저하 ─────────────────────────────────────────
+    # YouTube 평균 좋아요율 0.5~3%. 0.03% 미만 = 심각한 참여 공백
+    if view_count >= 50_000 and like_rate < 0.0003:
+        deduct += 35
+        flags.append(f"좋아요율 {like_rate*100:.3f}% (정상 0.5%↑)")
+
+    elif view_count >= 10_000 and like_rate < 0.001:
+        deduct += 20
+        flags.append(f"좋아요율 낮음 {like_rate*100:.2f}%")
+
+    # ── 신호 2: 댓글+좋아요 동시 0 (참여 완전 공백) ──────────────────────
+    if view_count >= 100_000 and likes == 0 and comments == 0:
+        deduct += 40
+        flags.append("조회수 10만+ 인데 좋아요·댓글 0")
+
+    elif view_count >= 30_000 and likes == 0:
+        deduct += 25
+        flags.append("조회수 3만+ 인데 좋아요 0")
+
+    # ── 신호 3: 신생 채널 이상 급등 ──────────────────────────────────────
+    # 구독자 500 미만인데 조회수 100만+
+    if subs > 0 and subs < 500 and view_count >= 1_000_000:
+        deduct += 40
+        flags.append(f"구독자 {subs:,}명 채널 조회수 {view_count:,}회")
+
+    elif subs > 0 and subs < 1_000 and view_count >= 500_000:
+        deduct += 30
+        flags.append(f"구독자 {subs:,}명 채널 조회수 {view_count:,}회")
+
+    elif subs > 0 and subs < 5_000 and view_count >= 2_000_000:
+        deduct += 20
+        flags.append(f"구독자 대비 조회수 극단적 불균형")
+
+    # ── 신호 4: 조회 속도 + 참여율 역전 ─────────────────────────────────
+    # 시간당 1만뷰 이상인데 좋아요율 0.05% 미만
+    if view_velocity and view_velocity > 10_000 and like_rate < 0.0005:
+        deduct += 25
+        flags.append(f"초고속 유입({view_velocity:.0f}/h)에 참여율 극히 낮음")
+
+    # ── 신호 5: 댓글 완전 없음 (조회수 대비) ─────────────────────────────
+    if view_count >= 200_000 and comment_rate < 0.00005:
+        deduct += 15
+        flags.append(f"댓글 거의 없음 ({comments}개/{view_count:,}뷰)")
+
+    trust_score = max(0, 100 - deduct)
+    return trust_score, flags
+
+
 def _parse_publish(date_str: str) -> datetime | None:
     if not date_str:
         return None

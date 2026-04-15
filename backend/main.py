@@ -19,6 +19,7 @@ from backend.routers.auth_router import router as auth_router
 from backend.routers.trending import router as trending_router
 from backend.routers.brief import router as brief_router
 from backend.routers.topic import router as topic_router
+from backend.routers.keywords import router as keywords_router
 from backend.scheduler import start_scheduler
 
 app = FastAPI(title="YT Trending Dashboard", version="0.3.0")
@@ -35,9 +36,10 @@ app.include_router(auth_router)
 
 # 인증 필요 — 모든 API 라우터에 get_current_user 의존성 주입
 _auth = [Depends(get_current_user)]
-app.include_router(trending_router, dependencies=_auth)
-app.include_router(brief_router,    dependencies=_auth)
-app.include_router(topic_router,    dependencies=_auth)
+app.include_router(trending_router,  dependencies=_auth)
+app.include_router(brief_router,     dependencies=_auth)
+app.include_router(topic_router,     dependencies=_auth)
+app.include_router(keywords_router,  dependencies=_auth)
 
 # 프론트엔드 정적 파일 서빙
 FRONTEND_DIR = Path(__file__).parent.parent / "frontend"

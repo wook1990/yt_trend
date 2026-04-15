@@ -1,0 +1,71 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches: [main]
+
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  CLOUDRUN_SERVICE: yt-trend
+  CLOUDRUN_REGION: asia-northeast3
+
+jobs:
+  # ── 1. 테스트 통과 확인 ──────────────────────────────────────────────────────
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+      - name: Install dependencies
+        run: uv sync --frozen
+      - name: Run API tests
+        env:
+          YOUTUBE_API_KEY: dummy
+          GEMINI_API_KEY: dummy
+          JWT_SECRET: test-secret-key-minimum-32-characters-long
+          ADMIN_PASSWORD: admin1234
+        run: uv run python tests/test_api.py
+
+  # ── 2. Cloud Run 배포 ────────────────────────────────────────────────────────
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write   # Workload Identity Federation 사용 시 필요
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.CLOUDRUN_SERVICE }}
+          region: ${{ env.CLOUDRUN_REGION }}
+          source: .
+          env_vars: |
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            YOUTUBE_API_KEY=${{ secrets.YOUTUBE_API_KEY }}
+            GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            ADMIN_USERNAME=${{ secrets.ADMIN_USERNAME }}
+            ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}
+            ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}
+            SCHEDULER_SECRET=${{ secrets.SCHEDULER_SECRET }}
+          flags: |
+            --allow-unauthenticated
+            --memory=512Mi
+            --min-instances=0
+            --max-instances=2
+
+      - name: Show deployed URL
+        run: echo "Deployed to ${{ steps.deploy.outputs.url }}"
