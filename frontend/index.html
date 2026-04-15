@@ -10,10 +10,10 @@
   <script>
     tailwind.config = {
       theme: { extend: { colors: {
-        cream: '#faf9f7', oat: '#dad4c8', 'oat-light': '#f5f4f1',
-        ink: '#1a1a1a', 'ink-soft': '#4a4a4a', 'ink-muted': '#888888',
-        matcha: '#078a52', slushie: '#3bd3fd', lemon: '#fbbd41',
-        ube: '#43089f', pom: '#fc7981',
+        cream: '#080808', oat: '#1e1e1e', 'oat-light': '#111111',
+        ink: '#e8e8e8', 'ink-soft': '#aaaaaa', 'ink-muted': '#555555',
+        matcha: '#00b4d8', slushie: '#3bd3fd', lemon: '#fbbd41',
+        ube: '#8b5cf6', pom: '#fc7981',
       }}}
     }
   </script>
@@ -23,132 +23,123 @@
     * { font-family: 'Plus Jakarta Sans', sans-serif; }
     [x-cloak] { display: none }
     * { -webkit-tap-highlight-color: transparent }
-    body { overscroll-behavior: none; background: #faf9f7; }
+    body { overscroll-behavior: none; background: #080808; color: #e8e8e8; }
 
     .hide-scrollbar::-webkit-scrollbar { display: none }
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none }
     .thin-scroll::-webkit-scrollbar { width: 3px; height: 3px }
-    .thin-scroll::-webkit-scrollbar-thumb { background: #dad4c8; border-radius: 2px }
+    .thin-scroll::-webkit-scrollbar-thumb { background: #282828; border-radius: 2px }
 
-    @keyframes fadeIn { from { opacity:0; transform:translateY(6px) } to { opacity:1; transform:translateY(0) } }
-    .fade-in { animation: fadeIn .18s cubic-bezier(.22,1,.36,1) }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(4px) } to { opacity:1; transform:translateY(0) } }
+    .fade-in { animation: fadeIn .2s cubic-bezier(.22,1,.36,1) }
     @keyframes spin { to { transform:rotate(360deg) } }
     .spin { animation: spin 1s linear infinite }
 
-    /* Clay card */
+    /* Dark surface card */
     .clay-card {
-      background: white;
-      border: 1.5px solid #dad4c8;
-      border-radius: 20px;
-      box-shadow: rgba(0,0,0,.08) 0 2px 8px, rgba(0,0,0,.04) 0 1px 2px;
+      background: #0f0f0f;
+      border: 1px solid #1e1e1e;
+      border-radius: 6px;
     }
     .clay-card-sm {
-      background: white;
-      border: 1.5px solid #dad4c8;
-      border-radius: 16px;
-      box-shadow: rgba(0,0,0,.06) 0 1px 4px;
+      background: #0f0f0f;
+      border: 1px solid #1e1e1e;
+      border-radius: 4px;
     }
 
-    /* Clay input */
+    /* Dark input */
     .clay-input {
-      background: white;
-      border: 1.5px solid #dad4c8;
-      border-radius: 12px;
-      color: #1a1a1a;
+      background: #111111;
+      border: 1px solid #252525;
+      border-radius: 4px;
+      color: #e8e8e8;
       transition: border-color .15s, box-shadow .15s;
     }
     .clay-input:focus {
       outline: none;
-      border-color: #078a52;
-      box-shadow: 0 0 0 3px rgba(7,138,82,.1);
+      border-color: #00b4d8;
+      box-shadow: 0 0 0 2px rgba(0,180,216,.15);
     }
-    .clay-input::placeholder { color: #b0aa9e; }
+    .clay-input::placeholder { color: #404040; }
 
-    /* Select clay */
+    /* Select */
     select.clay-input { cursor: pointer; }
+    select.clay-input option { background: #111111; color: #e8e8e8; }
 
-    /* Button animations */
+    /* Button */
     .btn-clay {
-      transition: transform .15s cubic-bezier(.22,1,.36,1), box-shadow .15s;
+      transition: opacity .15s, border-color .15s;
       cursor: pointer;
     }
-    .btn-clay:hover:not(:disabled) {
-      transform: rotateZ(-5deg) translateY(-2px);
-      box-shadow: -4px 4px 0 #1a1a1a;
-    }
-    .btn-clay:active:not(:disabled) {
-      transform: rotateZ(-1deg) translateY(0);
-      box-shadow: -2px 2px 0 #1a1a1a;
-    }
-    .btn-clay:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-clay:hover:not(:disabled) { opacity: .8; }
+    .btn-clay:active:not(:disabled) { opacity: .6; }
+    .btn-clay:disabled { opacity: .3; cursor: not-allowed; }
 
-    /* Primary (Matcha) button */
+    /* Primary button */
     .btn-matcha {
-      background: #078a52;
-      color: white;
-      border: 2px solid #055e38;
-      border-radius: 12px;
+      background: #00b4d8;
+      color: #080808;
+      border: 1px solid #0090ad;
+      border-radius: 4px;
       font-weight: 700;
     }
 
     /* Outline button */
     .btn-outline {
-      background: white;
-      color: #1a1a1a;
-      border: 1.5px solid #dad4c8;
-      border-radius: 12px;
+      background: transparent;
+      color: #e8e8e8;
+      border: 1px solid #2a2a2a;
+      border-radius: 4px;
       font-weight: 600;
     }
-    .btn-outline:hover:not(:disabled) {
-      border-color: #1a1a1a;
-    }
+    .btn-outline:hover:not(:disabled) { border-color: #e8e8e8; }
 
     /* Pill button */
-    .pill-active   { background: #1a1a1a; color: white; }
-    .pill-inactive { background: #f5f4f1; color: #888; }
-    .pill-inactive:hover { background: #ebe9e4; color: #1a1a1a; }
+    .pill-active   { background: #e8e8e8; color: #080808; }
+    .pill-inactive { background: #111111; color: #555555; border: 1px solid #1e1e1e; }
+    .pill-inactive:hover { color: #aaaaaa; border-color: #333; }
 
     /* Tab navigation */
     .nav-tab-active {
-      color: #1a1a1a;
+      color: #e8e8e8;
       font-weight: 700;
-      border-bottom: 2px solid #078a52;
+      border-bottom: 2px solid #00b4d8;
     }
     .nav-tab-inactive {
-      color: #888;
+      color: #555555;
       border-bottom: 2px solid transparent;
     }
-    .nav-tab-inactive:hover { color: #4a4a4a; }
+    .nav-tab-inactive:hover { color: #aaaaaa; }
 
     /* Shorts badge */
     .shorts-badge {
-      background: #43089f;
+      background: rgba(139,92,246,.8);
       color: white;
     }
 
     /* Spike badge */
     .spike-badge {
-      background: #fff0f0;
-      color: #c0384a;
-      border: 1px solid rgba(252,121,129,.3);
+      background: rgba(252,121,129,.12);
+      color: #fc7981;
+      border: 1px solid rgba(252,121,129,.25);
     }
 
     /* Rank colors */
-    .rank-gold   { color: #d97706; }
-    .rank-silver { color: #6b7280; }
-    .rank-bronze { color: #b45309; }
+    .rank-gold   { color: #fbbd41; }
+    .rank-silver { color: #aaaaaa; }
+    .rank-bronze { color: #cd7c42; }
 
     /* Modal backdrop */
     .modal-backdrop {
-      background: rgba(26,26,26,0.5);
-      backdrop-filter: blur(4px);
+      background: rgba(0,0,0,0.8);
+      backdrop-filter: blur(8px);
     }
   </style>
 </head>
 <body class="min-h-screen" x-data="app()" x-init="init()">
 
 <!-- ── 헤더 ──────────────────────────────────────────────────── -->
-<header class="sticky top-0 z-40 bg-white/95 backdrop-blur-sm border-b border-oat">
+<header class="sticky top-0 z-40 bg-cream/98 backdrop-blur-sm border-b border-oat">
 
   <!-- 상단 바 -->
   <div class="flex items-center gap-2 px-3 py-2.5">
@@ -170,7 +161,7 @@
     <div class="flex rounded-[10px] overflow-hidden border border-oat text-xs">
       <template x-for="p in periods">
         <button @click="period=p.key; load()"
-          :class="period===p.key ? 'bg-ink text-white' : 'bg-oat-light text-ink-muted hover:bg-oat/60'"
+          :class="period===p.key ? 'bg-ink text-white' : 'bg-oat-light/60 text-ink-muted hover:bg-oat/30'"
           class="px-2.5 py-1.5 transition font-semibold" x-text="p.label"></button>
       </template>
     </div>
@@ -201,7 +192,7 @@
     <!-- 엔터 제외 토글 -->
     <button @click="excludeMusic=!excludeMusic; load()"
       :class="excludeMusic
-        ? 'bg-[#fff0f0] border-pom/50 text-[#c0384a]'
+        ? 'bg-[#1f1010] border-pom/50 text-pom'
         : 'bg-oat-light border-oat text-ink-muted'"
       class="border text-xs px-2.5 py-1 rounded-full transition shrink-0 font-semibold">
       <span x-text="excludeMusic ? '🚫 엔터제외' : '전체'"></span>
@@ -239,7 +230,7 @@
   </div>
 
   <!-- 탭 네비 -->
-  <div class="flex overflow-x-auto hide-scrollbar border-t border-oat text-xs bg-white">
+  <div class="flex overflow-x-auto hide-scrollbar border-t border-oat text-xs bg-cream">
     <template x-for="t in tabs" :key="t.key">
       <button @click="switchTab(t.key)"
         :class="activeTab===t.key ? 'nav-tab-active' : 'nav-tab-inactive'"
@@ -314,7 +305,7 @@
               <span class="truncate max-w-[100px]" x-text="v.channel"></span>
               <span x-show="v.category" class="bg-oat-light px-1.5 rounded-md text-ink-muted shrink-0" x-text="v.category"></span>
               <span x-show="period!=='day' && v.trending_days>1"
-                class="bg-[#f0fbff] text-slushie/90 border border-slushie/30 px-1.5 rounded-full shrink-0 font-semibold"
+                class="bg-[#081820] text-slushie/90 border border-slushie/30 px-1.5 rounded-full shrink-0 font-semibold"
                 x-text="v.trending_days+'일'"></span>
             </div>
           </div>
@@ -432,7 +423,7 @@
           <span class="text-[10px] text-ink-muted" x-text="myKeywords.length + '개'"></span>
         </div>
         <button @click="collectMyKeywords()" :disabled="keywordCollecting || myKeywords.length===0"
-          class="btn-clay text-[10px] px-3 py-1.5 font-semibold bg-[#f0fdf7] border border-matcha/30 text-matcha rounded-xl flex items-center gap-1">
+          class="btn-clay text-[10px] px-3 py-1.5 font-semibold bg-[#081a12] border border-matcha/40 text-matcha rounded-xl flex items-center gap-1">
           <span x-show="keywordCollecting" class="w-3 h-3 border-2 border-matcha/30 border-t-matcha rounded-full spin"></span>
           <span x-text="keywordCollecting ? '수집중...' : '▶ 지금 수집'"></span>
         </button>
@@ -592,7 +583,7 @@
         <span x-text="topicShowAdvanced ? '▲' : '▼'"></span>
         <span>고급 필터</span>
         <span x-show="topicVideoType!=='all'||topicMinViews>0||topicSubscriberTier!=='all'||topicCompareTopic"
-          class="ml-1 px-1.5 py-0.5 bg-matcha/10 text-matcha rounded-full text-[9px] font-bold">적용중</span>
+          class="ml-1 px-1.5 py-0.5 bg-matcha/20 text-matcha rounded-full text-[9px] font-bold">적용중</span>
       </button>
 
       <div x-show="topicShowAdvanced" class="space-y-2 pt-1">
@@ -650,7 +641,7 @@
 
     <!-- 에러 -->
     <div x-show="topicError"
-      class="bg-[#fff0f0] border border-pom/40 rounded-xl p-3 text-xs text-[#c0384a]"
+      class="bg-[#1f1010] border border-pom/40 rounded-xl p-3 text-xs text-pom"
       x-text="topicError"></div>
 
     <!-- 분석 결과 -->
@@ -690,7 +681,7 @@
             <button @click="topicSection=s.key"
               :class="topicSection===s.key
                 ? 'bg-ink text-white'
-                : 'bg-oat-light text-ink-muted hover:bg-oat/60'"
+                : 'bg-oat-light/60 text-ink-muted hover:bg-oat/30'"
               class="text-[10px] px-3 py-1.5 rounded-full shrink-0 transition font-bold"
               x-text="s.label"></button>
           </template>
@@ -728,7 +719,7 @@
             <div class="space-y-2">
               <template x-for="(g,i) in (topicResult.analysis?.content_gaps || [])" :key="i">
                 <div class="flex gap-2">
-                  <span class="text-[10px] bg-[#f0fdf7] text-matcha border border-matcha/30 px-1.5 py-0.5 rounded font-bold shrink-0" x-text="i+1"></span>
+                  <span class="text-[10px] bg-[#081a12] text-matcha border border-matcha/30 px-1.5 py-0.5 rounded font-bold shrink-0" x-text="i+1"></span>
                   <div>
                     <div class="text-xs text-ink font-medium" x-text="g.gap"></div>
                     <div class="text-[10px] text-ink-muted mt-0.5" x-text="g.opportunity"></div>
@@ -741,7 +732,7 @@
             <div class="text-[10px] font-bold text-ube mb-2">🔑 필수 SEO 키워드</div>
             <div class="flex flex-wrap gap-1.5">
               <template x-for="kw in (topicResult.analysis?.seo_keywords || [])" :key="kw">
-                <span class="text-xs bg-[#f5f0ff] border border-ube/30 text-ube px-2 py-0.5 rounded-full font-semibold" x-text="kw"></span>
+                <span class="text-xs bg-[#140f1f] border border-ube/30 text-ube px-2 py-0.5 rounded-full font-semibold" x-text="kw"></span>
               </template>
             </div>
           </div>
@@ -781,7 +772,7 @@
                 </div>
               </div>
               <div class="space-y-1.5 ml-6">
-                <div class="bg-[#fff8f0] border border-pom/25 rounded-xl px-2.5 py-2">
+                <div class="bg-[#1a1008] border border-pom/25 rounded-xl px-2.5 py-2">
                   <div class="text-[10px] text-pom font-bold mb-0.5">🎬 오프닝 훅</div>
                   <div class="text-xs text-ink-soft leading-snug italic" x-text="idea.hook"></div>
                 </div>
@@ -828,7 +819,7 @@
               <div class="text-xs font-bold text-ink mb-1">⚡ 비교 결과</div>
               <div class="flex items-center gap-2 mb-2">
                 <span class="text-[10px] px-2 py-0.5 rounded-full font-bold"
-                  :class="topicResult.compare.analysis?.winner==='A' ? 'bg-matcha/10 text-matcha' : topicResult.compare.analysis?.winner==='B' ? 'bg-slushie/10 text-slushie' : 'bg-oat-light text-ink-soft'"
+                  :class="topicResult.compare.analysis?.winner==='A' ? 'bg-matcha/20 text-matcha' : topicResult.compare.analysis?.winner==='B' ? 'bg-slushie/15 text-slushie' : 'bg-oat-light text-ink-soft'"
                   x-text="topicResult.compare.analysis?.winner==='A' ? '🏆 ' + topicResult.topic + ' 우세' : topicResult.compare.analysis?.winner==='B' ? '🏆 ' + topicResult.compare.topic + ' 우세' : '🤝 동등'"></span>
               </div>
               <p class="text-[11px] text-ink-soft leading-relaxed" x-text="topicResult.compare.analysis?.winner_reason"></p>
@@ -933,7 +924,7 @@
             <button @click="curatedOpenCat = cat.category_id"
               :class="curatedOpenCat === cat.category_id
                 ? 'bg-ink text-white border-ink'
-                : 'bg-oat-light border-oat text-ink-muted hover:bg-white'"
+                : 'bg-oat-light border-oat text-ink-muted hover:bg-oat-light'"
               class="border text-[10px] px-3 py-1.5 rounded-full whitespace-nowrap font-semibold transition shrink-0">
               <span x-text="cat.category_name"></span>
               <span class="opacity-60 ml-1" x-text="cat.showing + '개'"></span>
@@ -966,7 +957,7 @@
                     <span class="text-[10px] text-ink-muted truncate max-w-[100px]" x-text="v.channel"></span>
                     <!-- 신뢰도 배지 -->
                     <span class="text-[9px] px-1.5 py-0.5 rounded-full font-bold shrink-0"
-                      :class="(v.trust_score||100) >= 80 ? 'bg-matcha/10 text-matcha' : (v.trust_score||100) >= 60 ? 'bg-lemon/20 text-[#854d0e]' : 'bg-pom/10 text-pom'"
+                      :class="(v.trust_score||100) >= 80 ? 'bg-matcha/20 text-matcha' : (v.trust_score||100) >= 60 ? 'bg-lemon/20 text-lemon' : 'bg-pom/10 text-pom'"
                       x-text="'신뢰 ' + (v.trust_score||'?')"></span>
                   </div>
                 </div>
@@ -1034,7 +1025,7 @@
                 <span class="text-base font-bold text-ink-muted" x-text="'#' + (i+1)"></span>
                 <span class="text-sm font-extrabold text-ink" x-text="item.category_name"></span>
                 <span class="text-[9px] px-1.5 py-0.5 rounded-full font-bold"
-                  :class="item.cpm_tier==='high' ? 'bg-matcha/10 text-matcha' : item.cpm_tier==='mid' ? 'bg-lemon/20 text-[#854d0e]' : 'bg-oat-light text-ink-muted'"
+                  :class="item.cpm_tier==='high' ? 'bg-matcha/20 text-matcha' : item.cpm_tier==='mid' ? 'bg-lemon/20 text-lemon' : 'bg-oat-light text-ink-muted'"
                   x-text="item.cpm_tier==='high' ? '고CPM' : item.cpm_tier==='mid' ? '중CPM' : '저CPM'"></span>
               </div>
               <!-- 기회 점수 게이지 -->
@@ -1117,14 +1108,14 @@
           class="btn-clay btn-outline text-[10px] px-2.5 py-1 font-semibold"
           x-text="briefLoading ? '로딩중...' : '📥 불러오기'"></button>
         <button @click="loadBrief(true)" :disabled="briefLoading"
-          class="btn-clay text-[10px] px-2.5 py-1 font-semibold bg-[#f5f0ff] border border-ube/30 text-ube rounded-xl">
+          class="btn-clay text-[10px] px-2.5 py-1 font-semibold bg-[#140f1f] border border-ube/30 text-ube rounded-xl">
           🔄 재생성</button>
       </div>
     </div>
 
     <!-- 에러 -->
     <div x-show="briefError"
-      class="bg-[#fff0f0] border border-pom/40 rounded-xl p-3 text-xs text-[#c0384a]"
+      class="bg-[#1f1010] border border-pom/40 rounded-xl p-3 text-xs text-pom"
       x-text="briefError"></div>
 
     <!-- 로딩 -->
@@ -1258,17 +1249,17 @@
     <div x-show="adminMsg"
       class="rounded-xl px-4 py-3 text-xs leading-relaxed font-medium border"
       :class="adminMsg.startsWith('✅')
-        ? 'bg-[#f0fdf7] border-matcha/30 text-matcha'
-        : 'bg-[#fff0f0] border-pom/40 text-[#c0384a]'"
+        ? 'bg-[#081a12] border-matcha/40 text-matcha'
+        : 'bg-[#1f1010] border-pom/40 text-pom'"
       x-text="adminMsg"></div>
 
     <!-- 서브탭 -->
     <div class="flex gap-1.5">
       <button @click="adminTab='requests'; loadAdminRequests()"
-        :class="adminTab==='requests' ? 'bg-ink text-white' : 'bg-oat-light text-ink-muted hover:bg-oat/60'"
+        :class="adminTab==='requests' ? 'bg-ink text-white' : 'bg-oat-light/60 text-ink-muted hover:bg-oat/30'"
         class="text-xs px-3 py-1.5 rounded-full transition font-bold">📋 가입 요청</button>
       <button @click="adminTab='users'; loadAdminUsers()"
-        :class="adminTab==='users' ? 'bg-ink text-white' : 'bg-oat-light text-ink-muted hover:bg-oat/60'"
+        :class="adminTab==='users' ? 'bg-ink text-white' : 'bg-oat-light/60 text-ink-muted hover:bg-oat/30'"
         class="text-xs px-3 py-1.5 rounded-full transition font-bold">👥 유저 관리</button>
     </div>
 
@@ -1287,10 +1278,10 @@
             </div>
             <span class="text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0"
               :class="req.status==='pending'
-                ? 'bg-[#fffbeb] text-[#854d0e] border border-lemon/50'
+                ? 'bg-[#1a1608] text-lemon border border-lemon/50'
                 : req.status==='approved'
-                ? 'bg-[#f0fdf7] text-matcha border border-matcha/30'
-                : 'bg-[#fff0f0] text-[#c0384a] border border-pom/40'"
+                ? 'bg-[#081a12] text-matcha border border-matcha/30'
+                : 'bg-[#1f1010] text-pom border border-pom/40'"
               x-text="req.status==='pending' ? '대기' : req.status==='approved' ? '승인' : '거절'"></span>
           </div>
           <div x-show="req.reason"
@@ -1298,10 +1289,10 @@
             x-text="req.reason"></div>
           <div x-show="req.status==='pending'" class="flex gap-2">
             <button @click="approveRequest(req.id)"
-              class="btn-clay flex-1 bg-[#f0fdf7] border border-matcha/40 text-matcha text-xs py-2 rounded-xl font-bold">
+              class="btn-clay flex-1 bg-[#081a12] border border-matcha/40 text-matcha text-xs py-2 rounded-xl font-bold">
               ✅ 승인</button>
             <button @click="rejectRequest(req.id)"
-              class="btn-clay flex-1 bg-[#fff0f0] border border-pom/40 text-[#c0384a] text-xs py-2 rounded-xl font-bold">
+              class="btn-clay flex-1 bg-[#1f1010] border border-pom/40 text-pom text-xs py-2 rounded-xl font-bold">
               ❌ 거절</button>
           </div>
         </div>
@@ -1317,19 +1308,19 @@
               <span class="text-sm font-bold text-ink" x-text="u.username"></span>
               <span class="text-[10px] px-1.5 py-0.5 rounded-md font-bold"
                 :class="u.role==='admin'
-                  ? 'bg-[#f5f0ff] text-ube border border-ube/30'
+                  ? 'bg-[#140f1f] text-ube border border-ube/30'
                   : 'bg-oat-light text-ink-muted border border-oat'"
                 x-text="u.role==='admin' ? '관리자' : '유저'"></span>
               <span x-show="!u.is_active"
-                class="text-[10px] bg-[#fff0f0] text-[#c0384a] border border-pom/40 px-1.5 py-0.5 rounded-md font-bold">비활성</span>
+                class="text-[10px] bg-[#1f1010] text-pom border border-pom/40 px-1.5 py-0.5 rounded-md font-bold">비활성</span>
             </div>
             <div class="text-[10px] text-ink-muted mt-0.5" x-text="u.email"></div>
           </div>
           <div x-show="u.role !== 'admin'" class="flex gap-1.5 shrink-0">
             <button @click="toggleUser(u.id)"
               :class="u.is_active
-                ? 'bg-[#fff0f0] text-[#c0384a] border-pom/40 hover:border-pom/70'
-                : 'bg-[#f0fdf7] text-matcha border-matcha/40 hover:border-matcha/70'"
+                ? 'bg-[#1f1010] text-pom border-pom/40 hover:border-pom/70'
+                : 'bg-[#081a12] text-matcha border-matcha/40 hover:border-matcha/70'"
               class="btn-clay border text-[10px] px-2 py-1.5 rounded-xl font-bold"
               x-text="u.is_active ? '비활성화' : '활성화'"></button>
             <button @click="resetPassword(u.id)"
@@ -1347,11 +1338,11 @@
 <!-- ── 지표 가이드 모달 ──────────────────────────────────────── -->
 <div x-show="showGuide" x-cloak @click.self="showGuide=false"
   class="fixed inset-0 z-50 modal-backdrop flex items-end md:items-center justify-center">
-  <div class="bg-white border border-oat rounded-t-3xl md:rounded-3xl w-full md:max-w-lg max-h-[90vh] overflow-y-auto thin-scroll fade-in"
+  <div class="bg-[#0f0f0f] border border-oat rounded-t-xl md:rounded-xl w-full md:max-w-lg max-h-[90vh] overflow-y-auto thin-scroll fade-in"
     style="box-shadow:0 -4px 32px rgba(0,0,0,.12)" @click.stop>
 
     <!-- 헤더 -->
-    <div class="flex items-center justify-between px-5 py-4 border-b border-oat sticky top-0 bg-white rounded-t-3xl">
+    <div class="flex items-center justify-between px-5 py-4 border-b border-oat sticky top-0 bg-[#0f0f0f] rounded-t-xl">
       <div class="flex items-center gap-2">
         <span class="text-lg">📖</span>
         <span class="font-extrabold text-sm text-ink">지표 가이드</span>
@@ -1430,7 +1421,7 @@
           </div>
         </div>
 
-        <div class="clay-card-sm p-3 bg-[#f5f0ff]">
+        <div class="clay-card-sm p-3 bg-[#140f1f]">
           <div class="text-[10px] font-bold text-ube mb-1">급등 원인 레이블</div>
           <div class="space-y-1 text-[10px]">
             <div><span class="font-semibold">🚀 신규 급등</span> — 업로드 48시간 이내에 트렌드 진입</div>
@@ -1482,7 +1473,7 @@
           </div>
         </div>
 
-        <div class="bg-[#f0fdf7] border border-matcha/20 rounded-xl p-3 text-[10px] text-ink-soft leading-relaxed">
+        <div class="bg-[#081a12] border border-matcha/20 rounded-xl p-3 text-[10px] text-ink-soft leading-relaxed">
           <strong class="text-matcha">큐레이션 탭</strong>에서 신뢰도 기준을 조정할 수 있어요.<br>
           · 느슨하게(40+): 더 많은 영상 포함<br>
           · 엄격하게(75+): 확실히 신뢰도 높은 영상만
@@ -1589,7 +1580,7 @@
 <!-- ── 영상 상세 모달 ────────────────────────────────────────── -->
 <div x-show="detailVideo" x-cloak @click.self="closeDetail()"
   class="fixed inset-0 z-50 modal-backdrop flex items-end md:items-center justify-center">
-  <div class="bg-white border border-oat rounded-t-3xl md:rounded-3xl w-full md:max-w-lg max-h-[92vh] overflow-y-auto thin-scroll fade-in"
+  <div class="bg-[#0f0f0f] border border-oat rounded-t-xl md:rounded-xl w-full md:max-w-lg max-h-[92vh] overflow-y-auto thin-scroll fade-in"
     style="box-shadow:0 -4px 32px rgba(0,0,0,.12)"
     @click.stop>
     <template x-if="detailVideo">
@@ -1636,7 +1627,7 @@
         </div>
 
         <!-- 모방 포인트 -->
-        <div class="bg-[#f0fdf7] rounded-xl p-3 mb-3 text-xs border border-matcha/20">
+        <div class="bg-[#081a12] rounded-xl p-3 mb-3 text-xs border border-matcha/20">
           <div class="text-[10px] text-matcha font-bold mb-1.5">📋 모방 포인트</div>
           <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-ink-soft">
             <div><span class="text-ink-muted">제목 </span><span x-text="detailVideo.title.length+'자'"></span></div>
@@ -1663,7 +1654,7 @@
 
         <!-- 분석 결과 -->
         <div x-show="analysisResult&&!analyzing" x-cloak class="space-y-2">
-          <div class="bg-[#f5f0ff] border border-ube/30 rounded-xl p-3">
+          <div class="bg-[#140f1f] border border-ube/30 rounded-xl p-3">
             <div class="text-[10px] text-ube font-bold mb-1">💡 핵심 가치</div>
             <div class="text-sm text-ink font-bold" x-text="analysisResult.hook"></div>
           </div>
@@ -1675,7 +1666,7 @@
             <div class="text-[10px] text-[#0891b2] font-bold mb-1">📋 영상 요약</div>
             <div class="text-xs text-ink-soft leading-relaxed" x-text="analysisResult.summary"></div>
           </div>
-          <div x-show="analysisResult.copy_guide" class="bg-[#f0fdf7] rounded-xl p-3 border border-matcha/20">
+          <div x-show="analysisResult.copy_guide" class="bg-[#081a12] rounded-xl p-3 border border-matcha/20">
             <div class="text-[10px] text-matcha font-bold mb-2">🎯 모방 가이드</div>
             <div class="space-y-1.5 text-xs text-ink-soft">
               <div><span class="text-ink-muted">제목 패턴 </span><span x-text="analysisResult.copy_guide?.title_pattern"></span></div>
@@ -1688,8 +1679,8 @@
               </div>
             </div>
           </div>
-          <div x-show="(analysisResult.key_insights||[]).length" class="bg-[#fffbeb] rounded-xl p-3 border border-lemon/40">
-            <div class="text-[10px] text-[#854d0e] font-bold mb-1.5">⚡ 핵심 인사이트</div>
+          <div x-show="(analysisResult.key_insights||[]).length" class="bg-[#1a1608] rounded-xl p-3 border border-lemon/40">
+            <div class="text-[10px] text-lemon font-bold mb-1.5">⚡ 핵심 인사이트</div>
             <ul class="space-y-1.5">
               <template x-for="(ins,i) in (analysisResult.key_insights||[])">
                 <li class="flex gap-1.5 text-xs text-ink-soft">
@@ -1709,12 +1700,12 @@
               </template>
             </ul>
           </div>
-          <div x-show="analysisResult.caution" class="bg-[#fff0f0] border border-pom/40 rounded-xl p-3">
+          <div x-show="analysisResult.caution" class="bg-[#1f1010] border border-pom/40 rounded-xl p-3">
             <div class="text-[10px] text-pom font-bold mb-1">⚠️ 주의</div>
             <div class="text-xs text-ink-soft" x-text="analysisResult.caution"></div>
           </div>
           <div x-show="analysisResult.error"
-            class="bg-[#fff0f0] border border-pom/50 rounded-xl p-3 text-xs text-[#c0384a]"
+            class="bg-[#1f1010] border border-pom/50 rounded-xl p-3 text-xs text-pom"
             x-text="analysisResult.error"></div>
           <button @click="analysisResult=null"
             class="w-full text-[10px] text-ink-muted hover:text-ink py-1 transition font-medium">닫기</button>
@@ -1956,27 +1947,27 @@ function app() {
     },
 
     trendColor(s) {
-      if (s === '급상승') return 'text-matcha bg-[#f0fdf7] border border-matcha/30'
-      if (s === '하락')   return 'text-[#c0384a] bg-[#fff0f0] border border-pom/40'
-      return 'text-[#854d0e] bg-[#fffbeb] border border-lemon/50'
+      if (s === '급상승') return 'text-matcha bg-[#081a12] border border-matcha/30'
+      if (s === '하락')   return 'text-pom bg-[#1f1010] border border-pom/40'
+      return 'text-lemon bg-[#1a1608] border border-lemon/50'
     },
 
     competitionColor(s) {
-      if (s === '블루오션') return 'text-[#0891b2] bg-[#f0fbff] border border-slushie/40'
-      if (s === '레드오션') return 'text-[#c0384a] bg-[#fff0f0] border border-pom/40'
-      return 'text-matcha bg-[#f0fdf7] border border-matcha/30'
+      if (s === '블루오션') return 'text-[#0891b2] bg-[#081820] border border-slushie/40'
+      if (s === '레드오션') return 'text-pom bg-[#1f1010] border border-pom/40'
+      return 'text-matcha bg-[#081a12] border border-matcha/30'
     },
 
     difficultyColor(s) {
       if (s === '쉬움') return 'text-matcha'
-      if (s === '어려움') return 'text-[#c0384a]'
-      return 'text-[#854d0e]'
+      if (s === '어려움') return 'text-pom'
+      return 'text-lemon'
     },
 
     saturationColor(s) {
-      if (s === '낮음') return 'bg-[#f0fdf7] text-matcha border border-matcha/30'
-      if (s === '높음') return 'bg-[#fff0f0] text-[#c0384a] border border-pom/40'
-      return 'bg-[#fffbeb] text-[#854d0e] border border-lemon/50'
+      if (s === '낮음') return 'bg-[#081a12] text-matcha border border-matcha/30'
+      if (s === '높음') return 'bg-[#1f1010] text-pom border border-pom/40'
+      return 'bg-[#1a1608] text-lemon border border-lemon/50'
     },
 
     async loadSignals() {
@@ -2029,7 +2020,7 @@ function app() {
         {label:'🎬 롱폼',       value: longs!==null  ? longs+'개'  : '-', color:'text-[#0891b2]', sub:'60초 초과'},
         {label:'소채널 돌파',   value:smallCh+'개',         color:'text-matcha',      sub:'구독 10만↓ · 조회 20만↑'},
         {label:'최고 1일 증가', value:this.fmt(topGain),   color:'text-pom',         sub:'조회수 기준'},
-        {label:'평균 스파이크', value:avgSpike.toFixed(1), color:'text-[#854d0e]',   sub:'0~100점'},
+        {label:'평균 스파이크', value:avgSpike.toFixed(1), color:'text-lemon',   sub:'0~100점'},
       ]
     },
 
@@ -2048,8 +2039,8 @@ function app() {
         data:{
           labels: this.categories.map(c=>c.name),
           datasets:[{data:this.categories.map(c=>c.count),
-            backgroundColor:['#078a52','#3bd3fd','#fbbd41','#fc7981','#43089f','#f97316','#84cc16','#06b6d4'],
-            borderWidth:2, borderColor:'#faf9f7'}]
+            backgroundColor:['#00b4d8','#8b5cf6','#fbbd41','#fc7981','#3bd3fd','#f97316','#84cc16','#06b6d4'],
+            borderWidth:2, borderColor:'#080808'}]
         },
         options:{plugins:{legend:{position:'right',labels:{color:'#4a4a4a',font:{size:10,family:'Plus Jakarta Sans'},boxWidth:8}}}}
       })
@@ -2065,9 +2056,9 @@ function app() {
       if (this.charts.reason) this.charts.reason.destroy()
       this.charts.reason = new Chart(ctx, {
         type:'bar',
-        data:{labels:sorted.map(s=>s[0]),datasets:[{data:sorted.map(s=>s[1]),backgroundColor:'#43089f',borderRadius:6}]},
+        data:{labels:sorted.map(s=>s[0]),datasets:[{data:sorted.map(s=>s[1]),backgroundColor:'#8b5cf6',borderRadius:6}]},
         options:{indexAxis:'y',plugins:{legend:{display:false}},
-          scales:{x:{ticks:{color:'#888',font:{size:9}},grid:{color:'#e8e4de'}},
+          scales:{x:{ticks:{color:'#555555',font:{size:9}},grid:{color:'#e8e4de'}},
                   y:{ticks:{color:'#1a1a1a',font:{size:9,family:'Plus Jakarta Sans'}},grid:{display:false}}}}
       })
     },
@@ -2082,10 +2073,10 @@ function app() {
         type:'bar',
         data:{labels:kws.map(k=>k.keyword),datasets:[{
           data:kws.map(k=>k.count),
-          backgroundColor:kws.map((_,i)=>i<5?'#078a52':i<10?'#3bd3fd':'#dad4c8'),
+          backgroundColor:kws.map((_,i)=>i<5?'#00b4d8':i<10?'#3bd3fd':'#282828'),
           borderRadius:4}]},
         options:{indexAxis:'y',plugins:{legend:{display:false}},
-          scales:{x:{ticks:{color:'#888',font:{size:9}},grid:{color:'#e8e4de'}},
+          scales:{x:{ticks:{color:'#555555',font:{size:9}},grid:{color:'#e8e4de'}},
                   y:{ticks:{color:'#1a1a1a',font:{size:10,family:'Plus Jakarta Sans'}},grid:{display:false}}}}
       })
     },
@@ -2095,14 +2086,14 @@ function app() {
 
     detailMetrics(v) {
       return [
-        {label:'순위',    value:v.rank+'위',                                         color:'text-[#d97706]'},
+        {label:'순위',    value:v.rank+'위',                                         color:'text-lemon'},
         {label:'조회수',  value:this.fmt(v.view_count),                              color:'text-ink'},
         {label:'구독자',  value:this.fmt(v.subscriber_count),                        color:'text-ink-soft'},
         {label:'좋아요',  value:this.fmt(v.like_count),                              color:'text-pom'},
         {label:'1일증가', value:v.view_gain_1d?'+'+this.fmt(v.view_gain_1d):'-',     color:'text-matcha'},
         {label:'반응률',  value:v.engagement_rate?v.engagement_rate.toFixed(1)+'%':'-', color:'text-ube'},
         {label:'바이럴',  value:v.viral_coefficient?v.viral_coefficient.toFixed(1)+'x':'-', color:'text-pom'},
-        {label:'스파이크',value:(v.spike_score||0).toFixed(0),                       color:'text-[#854d0e]'},
+        {label:'스파이크',value:(v.spike_score||0).toFixed(0),                       color:'text-lemon'},
         {label:'연속일수',value:(v.trending_days||1)+'일',                           color:'text-[#0891b2]'},
       ]
     },
