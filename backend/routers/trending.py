@@ -19,8 +19,12 @@ from backend.collector import run_collection
 router = APIRouter(prefix="/api", tags=["trending"])
 
 
-# exclude_music=True 시 제외할 카테고리 (음악/게임/엔터/스포츠/브이로그/영화/코미디/자동차)
-ENTERTAINMENT_CATEGORY_IDS = [10, 20, 24, 17, 1, 22, 2, 23]
+# 수집 대상 카테고리 (settings.yaml collect_categories와 동기화)
+# 이 목록에 없는 카테고리는 키워드 검색 결과라도 UI에서 제외
+ALLOWED_CATEGORY_IDS = {22, 25, 26, 27, 28}  # 인물/블로그, 뉴스, 노하우, 교육, IT/테크
+
+# exclude_music=True 시 추가로 제외 (ALLOWED에 없는 것들 중 명시적 블랙리스트)
+ENTERTAINMENT_CATEGORY_IDS = [10, 20, 24, 17, 1, 2, 23, 15]  # 음악·게임·엔터·스포츠·영화·자동차·코미디·반려동물
 
 # 하위 호환용 alias
 MUSIC_CATEGORY_IDS = ENTERTAINMENT_CATEGORY_IDS
@@ -61,8 +65,11 @@ def get_trending(
 
     if category != 0:
         q = q.filter(TrendingSnapshot.category_id == category)
-
-    if exclude_music:
+    elif exclude_music:
+        # 허용 카테고리만 표시 (키워드 검색으로 수집된 잡다한 카테고리 제거)
+        q = q.filter(TrendingSnapshot.category_id.in_(ALLOWED_CATEGORY_IDS))
+    elif not exclude_music:
+        # 전체 모드: 명시적 블랙리스트만 제외
         q = q.filter(TrendingSnapshot.category_id.notin_(MUSIC_CATEGORY_IDS))
 
     rows = q.order_by(TrendingSnapshot.spike_score.desc()).all()
@@ -195,9 +202,8 @@ def category_breakdown(
         TrendingSnapshot.captured_date >= start,
         TrendingSnapshot.captured_date <= end,
         TrendingSnapshot.region == region,
+        TrendingSnapshot.category_id.in_(ALLOWED_CATEGORY_IDS),
     )
-    if exclude_music:
-        q = q.filter(TrendingSnapshot.category_id.notin_(MUSIC_CATEGORY_IDS))
 
     rows = (
         q.group_by(TrendingSnapshot.category_id, TrendingSnapshot.category_name)
