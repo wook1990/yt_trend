@@ -277,47 +277,50 @@
     </div>
 
     <!-- 영상 리스트 -->
-    <div class="space-y-1.5">
+    <div class="space-y-2">
       <template x-for="v in filteredVideos" :key="v.video_id">
         <div @click="openDetail(v)"
-          class="clay-card-sm flex items-center gap-2.5 p-2.5 cursor-pointer hover:border-oat hover:shadow-md transition-shadow">
-          <!-- 순위 -->
-          <span class="text-xs font-bold w-5 text-center shrink-0"
-            :class="v.rank<=3?'rank-gold':v.rank<=10?'text-ink-soft':'text-ink-muted'"
-            x-text="v.rank"></span>
-          <!-- 썸네일 -->
-          <div class="relative shrink-0">
-            <img :src="v.thumbnail"
-              :class="v.is_short ? 'w-8 h-[42px]' : 'w-16 h-[42px]'"
-              class="object-cover rounded-lg bg-oat-light" loading="lazy" />
-            <span x-show="v.is_short"
-              class="absolute bottom-0.5 left-0 right-0 text-center text-[8px] shorts-badge rounded-b-lg leading-4">
-              Shorts
-            </span>
-          </div>
-          <!-- 정보 -->
-          <div class="flex-1 min-w-0">
-            <div class="flex items-start gap-1">
-              <div class="text-xs text-ink font-semibold leading-snug line-clamp-2 flex-1" x-text="v.title"></div>
+          class="clay-card-sm p-3 cursor-pointer hover:border-oat/60 transition-colors">
+          <!-- 상단: 순위 + 썸네일 + 제목/채널 -->
+          <div class="flex items-start gap-2.5">
+            <span class="text-xs font-bold w-5 text-center shrink-0 mt-0.5"
+              :class="v.rank<=3?'rank-gold':v.rank<=10?'text-ink-soft':'text-ink-muted'"
+              x-text="v.rank"></span>
+            <!-- 썸네일 -->
+            <div class="relative shrink-0">
+              <img :src="v.thumbnail"
+                :class="v.is_short ? 'w-[36px] h-[48px]' : 'w-[64px] h-[36px]'"
+                class="object-cover rounded bg-oat-light" loading="lazy" />
+              <span x-show="v.is_short"
+                class="absolute bottom-0 left-0 right-0 text-center text-[7px] shorts-badge rounded-b leading-[14px]">
+                Shorts
+              </span>
             </div>
-            <div x-show="v.title_ko" class="text-[10px] text-slushie/80 line-clamp-1 mt-0.5 font-medium" x-text="v.title_ko"></div>
-            <div class="flex items-center gap-1.5 text-[10px] text-ink-muted mt-0.5">
-              <span class="truncate max-w-[100px]" x-text="v.channel"></span>
-              <span x-show="v.category" class="bg-oat-light px-1.5 rounded-md text-ink-muted shrink-0" x-text="v.category"></span>
-              <span x-show="period!=='day' && v.trending_days>1"
-                class="bg-[#081820] text-slushie/90 border border-slushie/30 px-1.5 rounded-full shrink-0 font-semibold"
-                x-text="v.trending_days+'일'"></span>
+            <!-- 제목 + 채널 -->
+            <div class="flex-1 min-w-0">
+              <div class="text-xs text-ink font-semibold leading-snug line-clamp-2" x-text="v.title"></div>
+              <div x-show="v.title_ko" class="text-[10px] text-slushie/80 line-clamp-1 mt-0.5" x-text="v.title_ko"></div>
+              <div class="flex items-center gap-1.5 mt-1 flex-wrap">
+                <span class="text-[10px] text-ink-muted truncate max-w-[90px]" x-text="v.channel"></span>
+                <span x-show="v.category" class="text-[9px] bg-oat-light px-1.5 py-px rounded text-ink-muted shrink-0" x-text="v.category"></span>
+                <span x-show="period!=='day' && v.trending_days>1"
+                  class="text-[9px] bg-[#081820] text-slushie border border-slushie/30 px-1.5 py-px rounded shrink-0 font-bold"
+                  x-text="v.trending_days+'일 연속'"></span>
+              </div>
             </div>
           </div>
-          <!-- 지표 -->
-          <div class="text-right shrink-0 space-y-0.5">
-            <div class="text-xs font-bold text-ink" x-text="fmt(v.view_count)"
-              style="font-family:'Space Mono',monospace"></div>
-            <div class="text-[10px] font-semibold" :class="v.view_gain_1d>0?'text-matcha':'text-ink-muted'"
-              x-text="v.view_gain_1d?'+'+fmt(v.view_gain_1d):'-'"></div>
-            <div x-show="(v.spike_score||0)>30"
-              class="text-[10px] spike-badge px-1.5 rounded-full text-center font-bold"
-              x-text="'🔥'+(v.spike_score||0).toFixed(0)"></div>
+          <!-- 하단: 지표 칩 -->
+          <div class="flex items-center gap-2 mt-2.5 pl-[30px]">
+            <span class="text-xs font-bold text-ink" x-text="'👁 '+fmt(v.view_count)"
+              style="font-family:'Space Mono',monospace"></span>
+            <span x-show="v.view_gain_1d>0"
+              class="text-xs font-semibold text-matcha" x-text="'▲ '+fmt(v.view_gain_1d)"></span>
+            <span x-show="(v.spike_score||0)>30"
+              class="text-xs spike-badge px-2 py-px rounded font-bold ml-auto"
+              x-text="'🔥 '+( v.spike_score||0).toFixed(0)"></span>
+            <span x-show="v.engagement_rate>0 && (v.spike_score||0)<=30"
+              class="text-[10px] text-ink-muted ml-auto"
+              x-text="'참여 '+(v.engagement_rate||0).toFixed(1)+'%'"></span>
           </div>
         </div>
       </template>
@@ -328,29 +331,34 @@
   </div>
 
   <!-- ② 스파이크 TOP -->
-  <div x-show="activeTab==='spikes'" x-cloak class="fade-in space-y-1.5">
+  <div x-show="activeTab==='spikes'" x-cloak class="fade-in space-y-2">
     <template x-for="(v,i) in spikes" :key="v.video_id">
       <div @click="openDetail(v)"
-        class="clay-card-sm flex items-center gap-2.5 p-2.5 cursor-pointer hover:shadow-md transition-shadow">
-        <span class="text-sm font-extrabold w-6 text-center shrink-0"
-          :class="i===0?'rank-gold':i===1?'rank-silver':i===2?'rank-bronze':'text-ink-muted'"
-          x-text="i+1"></span>
-        <img :src="v.thumbnail" class="w-16 h-[42px] object-cover rounded-lg shrink-0 bg-oat-light" loading="lazy" />
-        <div class="flex-1 min-w-0">
-          <div class="text-xs font-semibold text-ink line-clamp-2 leading-snug" x-text="v.title"></div>
-          <div class="text-[10px] text-ink-muted mt-0.5 truncate" x-text="v.channel"></div>
-          <div class="flex gap-1 mt-1 flex-wrap">
-            <template x-for="r in (v.spike_reasons||[]).slice(0,2)">
-              <span class="text-[10px] bg-oat-light text-ink-soft px-1.5 py-px rounded-full border border-oat"
-                x-text="r.label"></span>
-            </template>
+        class="clay-card-sm p-3 cursor-pointer hover:border-oat/60 transition-colors">
+        <!-- 상단 -->
+        <div class="flex items-start gap-2.5">
+          <span class="text-xs font-extrabold w-5 text-center shrink-0 mt-0.5"
+            :class="i===0?'rank-gold':i===1?'rank-silver':i===2?'rank-bronze':'text-ink-muted'"
+            x-text="i+1"></span>
+          <img :src="v.thumbnail" class="w-[64px] h-[36px] object-cover rounded shrink-0 bg-oat-light" loading="lazy" />
+          <div class="flex-1 min-w-0">
+            <div class="text-xs font-semibold text-ink line-clamp-2 leading-snug" x-text="v.title"></div>
+            <div class="text-[10px] text-ink-muted mt-0.5 truncate" x-text="v.channel"></div>
+          </div>
+          <!-- 스파이크 점수 강조 -->
+          <div class="shrink-0 text-right">
+            <div class="text-lg font-extrabold text-pom leading-none" x-text="(v.spike_score||0).toFixed(0)"
+              style="font-family:'Space Mono',monospace"></div>
+            <div class="text-[9px] text-ink-muted">pt</div>
           </div>
         </div>
-        <div class="text-right shrink-0">
-          <div class="text-base font-extrabold text-pom" x-text="(v.spike_score||0).toFixed(0)"
-            style="font-family:'Space Mono',monospace"></div>
-          <div class="text-[10px] text-ink-muted">pt</div>
-          <div class="text-[10px] text-ink-soft mt-0.5 font-medium" x-text="fmt(v.view_count)"></div>
+        <!-- 하단: 이유 칩 + 조회수 -->
+        <div class="flex items-center gap-2 mt-2.5 pl-[30px]">
+          <template x-for="r in (v.spike_reasons||[]).slice(0,2)">
+            <span class="text-[10px] bg-oat-light text-ink-soft px-2 py-px rounded border border-oat"
+              x-text="r.label"></span>
+          </template>
+          <span class="text-xs text-ink-muted ml-auto font-medium" x-text="'👁 '+fmt(v.view_count)"></span>
         </div>
       </div>
     </template>
@@ -368,20 +376,28 @@
         <option :value="500000">50만 이하</option>
       </select>
     </div>
-    <div class="space-y-1.5">
+    <div class="space-y-2">
       <template x-for="(v,i) in copyableVideos" :key="v.video_id">
         <div @click="openDetail(v)"
-          class="clay-card-sm flex items-center gap-2.5 p-2.5 cursor-pointer hover:shadow-md transition-shadow">
-          <span class="text-xs text-ink-muted w-5 text-right shrink-0" x-text="i+1"></span>
-          <img :src="v.thumbnail" class="w-16 h-[42px] object-cover rounded-lg shrink-0 bg-oat-light" loading="lazy" />
-          <div class="flex-1 min-w-0">
-            <div class="text-xs font-semibold text-ink line-clamp-2 leading-snug" x-text="v.title"></div>
-            <div class="text-[10px] text-ink-muted mt-0.5 truncate" x-text="v.channel"></div>
+          class="clay-card-sm p-3 cursor-pointer hover:border-oat/60 transition-colors">
+          <!-- 상단 -->
+          <div class="flex items-start gap-2.5">
+            <span class="text-xs text-ink-muted w-5 text-right shrink-0 mt-0.5" x-text="i+1"></span>
+            <img :src="v.thumbnail" class="w-[64px] h-[36px] object-cover rounded shrink-0 bg-oat-light" loading="lazy" />
+            <div class="flex-1 min-w-0">
+              <div class="text-xs font-semibold text-ink line-clamp-2 leading-snug" x-text="v.title"></div>
+              <div class="text-[10px] text-ink-muted mt-0.5 truncate" x-text="v.channel"></div>
+            </div>
           </div>
-          <div class="text-right shrink-0 space-y-0.5">
-            <div class="text-[10px] text-ink-muted">구독 <span class="text-ink font-semibold" x-text="fmt(v.subscriber_count)"></span></div>
-            <div class="text-[10px] text-ink-soft font-medium" x-text="fmt(v.view_count)"></div>
-            <div class="text-[10px] text-pom font-bold" x-text="v.viral_coefficient?v.viral_coefficient.toFixed(1)+'x':'-'"></div>
+          <!-- 하단: 지표 칩 -->
+          <div class="flex items-center gap-3 mt-2.5 pl-[30px]">
+            <span class="text-[10px] text-ink-muted">구독
+              <span class="text-ink-soft font-bold text-xs ml-0.5" x-text="fmt(v.subscriber_count)"></span>
+            </span>
+            <span class="text-xs font-semibold text-ink" x-text="'👁 '+fmt(v.view_count)"></span>
+            <span x-show="v.viral_coefficient"
+              class="text-xs font-bold text-pom ml-auto"
+              x-text="'바이럴 '+(v.viral_coefficient||0).toFixed(1)+'×'"></span>
           </div>
         </div>
       </template>
