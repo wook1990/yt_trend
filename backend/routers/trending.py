@@ -19,9 +19,12 @@ from backend.collector import run_collection
 router = APIRouter(prefix="/api", tags=["trending"])
 
 
-# 수집 대상 카테고리 (settings.yaml collect_categories와 동기화)
+# 수집 대상 카테고리 (settings.yaml collect_categories + keyword_categories와 동기화)
 # 이 목록에 없는 카테고리는 키워드 검색 결과라도 UI에서 제외
-ALLOWED_CATEGORY_IDS = {22, 25, 26, 27, 28}  # 인물/블로그, 뉴스, 노하우, 교육, IT/테크
+ALLOWED_CATEGORY_IDS = {
+    22, 25, 26, 27, 28,        # YouTube 기본: 인물/블로그, 뉴스, 노하우, 교육, IT/테크
+    101, 102, 103, 104,        # 가상: 요리/레시피, 뷰티/패션, 부동산, 법률/세금
+}
 
 # exclude_music=True 시 추가로 제외 (ALLOWED에 없는 것들 중 명시적 블랙리스트)
 ENTERTAINMENT_CATEGORY_IDS = [10, 20, 24, 17, 1, 2, 23, 15]  # 음악·게임·엔터·스포츠·영화·자동차·코미디·반려동물

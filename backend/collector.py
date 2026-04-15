@@ -56,7 +56,13 @@ def run_collection(
 
     target_date = target_date or date.today()
     settings    = _load_settings()
-    seen_ids: set[str] = set()
+
+    # 오늘 이미 저장된 video_id를 seen_ids에 사전 로드 → 재실행 시 중복 방지
+    existing = db.query(TrendingSnapshot.video_id).filter(
+        TrendingSnapshot.captured_date == target_date,
+        TrendingSnapshot.region == region,
+    ).all()
+    seen_ids: set[str] = {r.video_id for r in existing}
     total = 0
 
     fetch_cfg = settings.get("fetch", {})
@@ -87,6 +93,16 @@ def run_collection(
 
             for kw in keywords:
                 total += _collect_keyword(db, api_key, region, kw, kw_limit, target_date, seen_ids)
+
+            # 3. 가상 카테고리 키워드 수집 (KR 전용 — force_category로 강제 분류)
+            if region == "KR":
+                for kw_cat in fetch_cfg.get("keyword_categories", []):
+                    cat_id = kw_cat["id"]
+                    for kw in kw_cat.get("keywords", []):
+                        total += _collect_keyword(
+                            db, api_key, region, kw, kw_limit, target_date, seen_ids,
+                            force_category=cat_id,
+                        )
     else:
         total += _collect_category(db, api_key, region, category, limit, target_date, seen_ids)
 
@@ -128,6 +144,7 @@ def _collect_keyword(
     limit: int,
     target_date: date,
     seen_ids: set[str],
+    force_category: int | None = None,
 ) -> int:
     from src.fetcher.yt_search import search_by_keyword
 
@@ -135,7 +152,8 @@ def _collect_keyword(
     if not videos:
         return 0
 
-    saved = _save_videos(db, api_key, videos, region, 0, target_date, seen_ids)
+    saved = _save_videos(db, api_key, videos, region, 0, target_date, seen_ids,
+                         force_category=force_category)
     print(f"[collector] keyword='{keyword}' → {saved}개 저장")
     return saved
 
@@ -150,6 +168,7 @@ def _save_videos(
     fallback_category: int,
     target_date: date,
     seen_ids: set[str],
+    force_category: int | None = None,
 ) -> int:
     """videos 목록을 받아 중복 제거 후 DB 저장."""
     new_videos = [v for v in videos if v["id"] not in seen_ids]
@@ -190,7 +209,11 @@ def _save_videos(
             view_velocity=metrics.get("view_velocity"),
         )
 
-        vid_category_id   = video.get("category_id") or fallback_category
+        vid_category_id   = force_category or video.get("category_id") or fallback_category
+        # force_category 없는 일반 키워드 수집: 비허용 카테고리면 교육(27)으로 재분류
+        _ALLOWED = {22, 25, 26, 27, 28, 101, 102, 103, 104}
+        if not force_category and vid_category_id not in _ALLOWED:
+            vid_category_id = 27  # 교육으로 fallback
         vid_category_name = CATEGORY_NAMES.get(vid_category_id, "기타")
 
         # 키워드 검색 출처 표기 (tags 앞에 붙이기)
