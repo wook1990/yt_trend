@@ -548,11 +548,13 @@ def _is_short(duration: str | None) -> bool:
 
 
 def _filter_by_type(videos: list[dict], video_type: str) -> list[dict]:
-    """video_type: 'all' | 'short' | 'long'"""
+    """video_type: 'all' | 'short' | 'long'
+    long = 재생시간 5분(300초) 이상만 포함 — 쇼츠형 짧은 영상 제외
+    """
     if video_type == "short":
         return [v for v in videos if v.get("is_short")]
     if video_type == "long":
-        return [v for v in videos if not v.get("is_short")]
+        return [v for v in videos if v.get("duration_seconds", 0) >= 1200]
     return videos
 
 
@@ -800,6 +802,36 @@ def get_opportunity(
         # 상위 영상 3개
         top_videos = sorted(cat_rows, key=lambda r: r.spike_score or 0, reverse=True)[:3]
 
+        # 이유 생성
+        reasons = []
+        if cpm_score >= 25:
+            reasons.append(f"추정 CPM ${cpm:.1f} — 광고 단가 높은 고수익 카테고리")
+        elif cpm_score >= 15:
+            reasons.append(f"추정 CPM ${cpm:.1f} — 중간 수준 광고 단가")
+        else:
+            reasons.append(f"추정 CPM ${cpm:.1f} — 광고 단가는 낮지만 조회수로 커버 가능")
+
+        if growth_score >= 20:
+            reasons.append(f"일평균 {round(avg_velocity/1000, 1)}k 조회 증가 · 스파이크 {avg_spike:.0f}pt — 빠른 성장 중")
+        elif growth_score >= 10:
+            reasons.append(f"스파이크 {avg_spike:.0f}pt — 꾸준한 성장세")
+        else:
+            reasons.append(f"스파이크 {avg_spike:.0f}pt — 성장 속도는 느린 편")
+
+        if entry_score >= 15:
+            reasons.append(f"소형채널(10만↓) {round(small_ratio*100)}% — 신규 채널도 충분히 진입 가능")
+        elif entry_score >= 8:
+            reasons.append(f"소형채널 {round(small_ratio*100)}% — 진입 난이도 보통, 차별화 필요")
+        else:
+            reasons.append(f"소형채널 {round(small_ratio*100)}% — 대형채널 중심, 진입 난이도 높음")
+
+        if engagement_score >= 15:
+            reasons.append(f"평균 참여율 {avg_engagement:.2f}% — 시청자 반응 매우 활발")
+        elif engagement_score >= 8:
+            reasons.append(f"평균 참여율 {avg_engagement:.2f}% — 양호한 시청자 반응")
+        else:
+            reasons.append(f"평균 참여율 {avg_engagement:.2f}% — 참여율 개선 여지 있음")
+
         from backend.models import CATEGORY_NAMES
         opportunities.append({
             "category_id":       cat_id,
@@ -811,6 +843,13 @@ def get_opportunity(
             "entry_difficulty":  entry_difficulty,
             "small_channel_ratio": round(small_ratio * 100),
             "video_count":       len(cat_rows),
+            "score_breakdown": {
+                "cpm":        round(cpm_score, 1),
+                "growth":     round(growth_score, 1),
+                "entry":      round(entry_score, 1),
+                "engagement": round(engagement_score, 1),
+            },
+            "reasons": reasons,
             "top_videos": [
                 {
                     "video_id":    r.video_id,

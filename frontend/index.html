@@ -255,7 +255,10 @@
 </div>
 
 <!-- ── 메인 콘텐츠 ─────────────────────────────────────────────── -->
-<main class="px-3 pb-24">
+<main class="flex flex-row items-start gap-0 md:gap-3 px-3 pb-24">
+
+<!-- ── 왼쪽: 탭 콘텐츠 ─────────────────────────────────────────── -->
+<div class="flex-1 min-w-0">
 
   <!-- ① 급상승 목록 -->
   <div x-show="activeTab==='trending'" class="fade-in">
@@ -280,47 +283,33 @@
     <div class="space-y-2">
       <template x-for="v in filteredVideos" :key="v.video_id">
         <div @click="openDetail(v)"
-          class="clay-card-sm p-3 cursor-pointer hover:border-oat/60 transition-colors">
-          <!-- 상단: 순위 + 썸네일 + 제목/채널 -->
-          <div class="flex items-start gap-2.5">
-            <span class="text-xs font-bold w-5 text-center shrink-0 mt-0.5"
+          class="clay-card-sm px-3 py-2.5 cursor-pointer hover:border-matcha/40 transition-colors"
+          :class="detailVideo&&detailVideo.video_id===v.video_id ? 'border-matcha/60 bg-[#071a10]' : ''">
+          <div class="flex items-center gap-2.5">
+            <span class="text-xs font-bold w-5 text-center shrink-0"
               :class="v.rank<=3?'rank-gold':v.rank<=10?'text-ink-soft':'text-ink-muted'"
               x-text="v.rank"></span>
-            <!-- 썸네일 -->
             <div class="relative shrink-0">
               <img :src="v.thumbnail"
-                :class="v.is_short ? 'w-[36px] h-[48px]' : 'w-[64px] h-[36px]'"
+                :class="v.is_short ? 'w-[36px] h-[48px]' : 'w-[72px] h-[40px]'"
                 class="object-cover rounded bg-oat-light" loading="lazy" />
               <span x-show="v.is_short"
-                class="absolute bottom-0 left-0 right-0 text-center text-[7px] shorts-badge rounded-b leading-[14px]">
-                Shorts
-              </span>
+                class="absolute bottom-0 left-0 right-0 text-center text-[7px] shorts-badge rounded-b leading-[14px]">Shorts</span>
             </div>
-            <!-- 제목 + 채널 -->
             <div class="flex-1 min-w-0">
               <div class="text-xs text-ink font-semibold leading-snug line-clamp-2" x-text="v.title"></div>
-              <div x-show="v.title_ko" class="text-[10px] text-slushie/80 line-clamp-1 mt-0.5" x-text="v.title_ko"></div>
-              <div class="flex items-center gap-1.5 mt-1 flex-wrap">
-                <span class="text-[10px] text-ink-muted truncate max-w-[90px]" x-text="v.channel"></span>
-                <span x-show="v.category" class="text-[9px] bg-oat-light px-1.5 py-px rounded text-ink-muted shrink-0" x-text="v.category"></span>
-                <span x-show="period!=='day' && v.trending_days>1"
-                  class="text-[9px] bg-[#081820] text-slushie border border-slushie/30 px-1.5 py-px rounded shrink-0 font-bold"
-                  x-text="v.trending_days+'일 연속'"></span>
+              <div class="flex items-center gap-2 mt-1">
+                <span class="text-[10px] text-ink-muted truncate" x-text="v.channel"></span>
+                <span x-show="(v.spike_score||0)>30"
+                  class="text-[9px] font-bold text-pom shrink-0" x-text="'🔥'+( v.spike_score||0).toFixed(0)"></span>
+                <span x-show="(v.view_gain_1d||0)>0"
+                  class="text-[9px] font-bold text-matcha shrink-0 ml-auto" x-text="'▲'+fmt(v.view_gain_1d)"></span>
               </div>
             </div>
-          </div>
-          <!-- 하단: 지표 칩 -->
-          <div class="flex items-center gap-2 mt-2.5 pl-[30px]">
-            <span class="text-xs font-bold text-ink" x-text="'👁 '+fmt(v.view_count)"
-              style="font-family:'Space Mono',monospace"></span>
-            <span x-show="v.view_gain_1d>0"
-              class="text-xs font-semibold text-matcha" x-text="'▲ '+fmt(v.view_gain_1d)"></span>
-            <span x-show="(v.spike_score||0)>30"
-              class="text-xs spike-badge px-2 py-px rounded font-bold ml-auto"
-              x-text="'🔥 '+( v.spike_score||0).toFixed(0)"></span>
-            <span x-show="v.engagement_rate>0 && (v.spike_score||0)<=30"
-              class="text-[10px] text-ink-muted ml-auto"
-              x-text="'참여 '+(v.engagement_rate||0).toFixed(1)+'%'"></span>
+            <div class="shrink-0 text-right">
+              <div class="text-[11px] font-bold text-ink-soft" x-text="fmt(v.view_count)" style="font-family:'Space Mono',monospace"></div>
+              <div class="text-[9px] text-ink-muted">조회수</div>
+            </div>
           </div>
         </div>
       </template>
@@ -334,31 +323,27 @@
   <div x-show="activeTab==='spikes'" x-cloak class="fade-in space-y-2">
     <template x-for="(v,i) in spikes" :key="v.video_id">
       <div @click="openDetail(v)"
-        class="clay-card-sm p-3 cursor-pointer hover:border-oat/60 transition-colors">
-        <!-- 상단 -->
-        <div class="flex items-start gap-2.5">
-          <span class="text-xs font-extrabold w-5 text-center shrink-0 mt-0.5"
+        class="clay-card-sm px-3 py-2.5 cursor-pointer hover:border-matcha/40 transition-colors"
+        :class="detailVideo&&detailVideo.video_id===v.video_id ? 'border-matcha/60 bg-[#071a10]' : ''">
+        <div class="flex items-center gap-2.5">
+          <span class="text-xs font-extrabold w-5 text-center shrink-0"
             :class="i===0?'rank-gold':i===1?'rank-silver':i===2?'rank-bronze':'text-ink-muted'"
             x-text="i+1"></span>
-          <img :src="v.thumbnail" class="w-[64px] h-[36px] object-cover rounded shrink-0 bg-oat-light" loading="lazy" />
+          <img :src="v.thumbnail" class="w-[72px] h-[40px] object-cover rounded shrink-0 bg-oat-light" loading="lazy" />
           <div class="flex-1 min-w-0">
             <div class="text-xs font-semibold text-ink line-clamp-2 leading-snug" x-text="v.title"></div>
-            <div class="text-[10px] text-ink-muted mt-0.5 truncate" x-text="v.channel"></div>
+            <div class="flex items-center gap-2 mt-1">
+              <span class="text-[10px] text-ink-muted truncate" x-text="v.channel"></span>
+              <template x-for="r in (v.spike_reasons||[]).slice(0,2)">
+                <span class="text-[9px] bg-oat-light text-ink-soft px-1.5 py-px rounded border border-oat shrink-0" x-text="r.label"></span>
+              </template>
+            </div>
           </div>
-          <!-- 스파이크 점수 강조 -->
           <div class="shrink-0 text-right">
-            <div class="text-lg font-extrabold text-pom leading-none" x-text="(v.spike_score||0).toFixed(0)"
+            <div class="text-base font-extrabold text-pom leading-none" x-text="(v.spike_score||0).toFixed(0)"
               style="font-family:'Space Mono',monospace"></div>
             <div class="text-[9px] text-ink-muted">pt</div>
           </div>
-        </div>
-        <!-- 하단: 이유 칩 + 조회수 -->
-        <div class="flex items-center gap-2 mt-2.5 pl-[30px]">
-          <template x-for="r in (v.spike_reasons||[]).slice(0,2)">
-            <span class="text-[10px] bg-oat-light text-ink-soft px-2 py-px rounded border border-oat"
-              x-text="r.label"></span>
-          </template>
-          <span class="text-xs text-ink-muted ml-auto font-medium" x-text="'👁 '+fmt(v.view_count)"></span>
         </div>
       </div>
     </template>
@@ -379,25 +364,23 @@
     <div class="space-y-2">
       <template x-for="(v,i) in copyableVideos" :key="v.video_id">
         <div @click="openDetail(v)"
-          class="clay-card-sm p-3 cursor-pointer hover:border-oat/60 transition-colors">
-          <!-- 상단 -->
-          <div class="flex items-start gap-2.5">
-            <span class="text-xs text-ink-muted w-5 text-right shrink-0 mt-0.5" x-text="i+1"></span>
-            <img :src="v.thumbnail" class="w-[64px] h-[36px] object-cover rounded shrink-0 bg-oat-light" loading="lazy" />
+          class="clay-card-sm px-3 py-2.5 cursor-pointer hover:border-matcha/40 transition-colors"
+          :class="detailVideo&&detailVideo.video_id===v.video_id ? 'border-matcha/60 bg-[#071a10]' : ''">
+          <div class="flex items-center gap-2.5">
+            <span class="text-xs text-ink-muted w-5 text-right shrink-0" x-text="i+1"></span>
+            <img :src="v.thumbnail" class="w-[72px] h-[40px] object-cover rounded shrink-0 bg-oat-light" loading="lazy" />
             <div class="flex-1 min-w-0">
               <div class="text-xs font-semibold text-ink line-clamp-2 leading-snug" x-text="v.title"></div>
-              <div class="text-[10px] text-ink-muted mt-0.5 truncate" x-text="v.channel"></div>
+              <div class="flex items-center gap-2 mt-1">
+                <span class="text-[10px] text-ink-muted truncate" x-text="v.channel"></span>
+                <span x-show="v.viral_coefficient" class="text-[9px] font-bold text-pom shrink-0 ml-auto"
+                  x-text="'바이럴 '+(v.viral_coefficient||0).toFixed(1)+'×'"></span>
+              </div>
             </div>
-          </div>
-          <!-- 하단: 지표 칩 -->
-          <div class="flex items-center gap-3 mt-2.5 pl-[30px]">
-            <span class="text-[10px] text-ink-muted">구독
-              <span class="text-ink-soft font-bold text-xs ml-0.5" x-text="fmt(v.subscriber_count)"></span>
-            </span>
-            <span class="text-xs font-semibold text-ink" x-text="'👁 '+fmt(v.view_count)"></span>
-            <span x-show="v.viral_coefficient"
-              class="text-xs font-bold text-pom ml-auto"
-              x-text="'바이럴 '+(v.viral_coefficient||0).toFixed(1)+'×'"></span>
+            <div class="shrink-0 text-right">
+              <div class="text-[11px] font-bold text-ink-soft" x-text="fmt(v.view_count)" style="font-family:'Space Mono',monospace"></div>
+              <div class="text-[9px] text-ink-muted">조회수</div>
+            </div>
           </div>
         </div>
       </template>
@@ -405,79 +388,6 @@
     </div>
   </div>
 
-  <!-- ④ 키워드 트렌드 -->
-  <div x-show="activeTab==='keywords'" x-cloak class="fade-in space-y-4">
-    <!-- 트렌드 차트 -->
-    <div>
-      <div class="text-xs text-ink-muted mb-2"
-        x-text="`분석 영상 ${keywordsData.total_videos||0}개 · ${keywordsData.start||''} ~ ${keywordsData.end||''}`"></div>
-      <div class="clay-card p-3">
-        <canvas id="keywordChart" height="260"></canvas>
-      </div>
-    </div>
-    <!-- 태그 클라우드 -->
-    <div class="flex flex-wrap gap-1.5">
-      <template x-for="(kw,i) in (keywordsData.keywords||[]).slice(0,35)" :key="kw.keyword">
-        <button @click="searchQuery=kw.keyword; switchTab('trending')"
-          :class="i<5?'bg-matcha border-matcha/80 text-white text-sm':
-                  i<15?'bg-oat-light border-oat text-ink text-xs':
-                  'bg-cream border-oat text-ink-muted text-[11px]'"
-          class="border px-2.5 py-1 rounded-full transition active:scale-95 font-semibold">
-          <span x-text="kw.keyword"></span>
-          <span class="opacity-60 ml-0.5 text-[10px]" x-text="kw.count"></span>
-        </button>
-      </template>
-      <div x-show="!(keywordsData.keywords||[]).length" class="text-ink-muted text-sm py-8 w-full text-center">데이터 없음</div>
-    </div>
-
-    <!-- 내 키워드 관리 -->
-    <div class="clay-card p-4 space-y-3" x-init="loadMyKeywords()">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <span class="text-sm">🔖</span>
-          <span class="text-sm font-bold text-ink">내 키워드</span>
-          <span class="text-[10px] text-ink-muted" x-text="myKeywords.length + '개'"></span>
-        </div>
-        <button @click="collectMyKeywords()" :disabled="keywordCollecting || myKeywords.length===0"
-          class="btn-clay text-[10px] px-3 py-1.5 font-semibold bg-[#081a12] border border-matcha/40 text-matcha rounded-xl flex items-center gap-1">
-          <span x-show="keywordCollecting" class="w-3 h-3 border-2 border-matcha/30 border-t-matcha rounded-full spin"></span>
-          <span x-text="keywordCollecting ? '수집중...' : '▶ 지금 수집'"></span>
-        </button>
-      </div>
-
-      <!-- 추가 입력 -->
-      <div class="flex gap-2">
-        <input x-model="newKeyword" @keydown.enter="addMyKeyword()"
-          placeholder="키워드 입력 (예: 쇼츠 수익화)"
-          class="clay-input flex-1 text-xs px-3 py-2 text-ink" />
-        <select x-model="newKeywordRegion"
-          class="clay-input text-[10px] px-2 py-2 text-ink-soft focus:outline-none" style="width:70px">
-          <option value="KR">🇰🇷 KR</option>
-          <option value="US">🇺🇸 US</option>
-          <option value="JP">🇯🇵 JP</option>
-        </select>
-        <button @click="addMyKeyword()" :disabled="!newKeyword.trim()"
-          class="btn-matcha btn-clay text-xs px-3 py-2 font-bold">추가</button>
-      </div>
-
-      <!-- 키워드 목록 -->
-      <div x-show="myKeywordsLoading" class="text-center text-[11px] text-ink-muted py-2">로딩중...</div>
-      <div x-show="!myKeywordsLoading && myKeywords.length===0"
-        class="text-center text-[11px] text-ink-muted py-2">
-        키워드를 추가하면 수동으로 수집하거나 자동 수집에 포함됩니다.
-      </div>
-      <div class="flex flex-wrap gap-1.5">
-        <template x-for="kw in myKeywords" :key="kw.id">
-          <div class="flex items-center gap-1 bg-oat-light border border-oat rounded-full px-2.5 py-1">
-            <span class="text-[10px] text-ink-soft font-semibold" x-text="kw.keyword"></span>
-            <span class="text-[9px] text-ink-muted" x-text="kw.region"></span>
-            <button @click="deleteMyKeyword(kw.id)"
-              class="text-ink-muted hover:text-pom ml-1 text-[10px] leading-none">✕</button>
-          </div>
-        </template>
-      </div>
-    </div>
-  </div>
 
   <!-- ⑤ 선행 감지 -->
   <div x-show="activeTab==='signals'" x-cloak class="fade-in">
@@ -569,21 +479,14 @@
         placeholder="예: 파이썬 자동화 부업, 간헐적 단식, 스마트스토어 마케팅"
         class="clay-input w-full text-xs px-3 py-2.5 text-ink" />
 
-      <div class="flex gap-2">
+      <!-- 국가 + 분석 버튼 -->
+      <div class="flex gap-2 items-center">
         <div class="flex items-center gap-1.5 text-[10px] text-ink-muted">
           <span class="font-semibold">국가</span>
           <select x-model="topicRegion" class="clay-input px-1.5 py-1 text-[10px] text-ink-soft focus:outline-none" style="border-radius:8px">
             <option value="KR">🇰🇷 KR</option>
             <option value="US">🇺🇸 US</option>
             <option value="JP">🇯🇵 JP</option>
-          </select>
-        </div>
-        <div class="flex items-center gap-1.5 text-[10px] text-ink-muted">
-          <span class="font-semibold">기간</span>
-          <select x-model.number="topicDays" class="clay-input px-1.5 py-1 text-[10px] text-ink-soft focus:outline-none" style="border-radius:8px">
-            <option value="7">7일</option>
-            <option value="30">30일</option>
-            <option value="90">90일</option>
           </select>
         </div>
         <button @click="analyzeTopic()" :disabled="topicLoading || !topicInput.trim()"
@@ -593,65 +496,43 @@
         </button>
       </div>
 
-      <!-- 고급 필터 토글 -->
-      <button @click="topicShowAdvanced = !topicShowAdvanced"
-        class="flex items-center gap-1 text-[10px] text-ink-muted hover:text-ink transition-colors">
-        <span x-text="topicShowAdvanced ? '▲' : '▼'"></span>
-        <span>고급 필터</span>
-        <span x-show="topicVideoType!=='all'||topicMinViews>0||topicSubscriberTier!=='all'||topicCompareTopic"
-          class="ml-1 px-1.5 py-0.5 bg-matcha/20 text-matcha rounded-full text-[9px] font-bold">적용중</span>
-      </button>
-
-      <div x-show="topicShowAdvanced" class="space-y-2 pt-1">
-        <div class="grid grid-cols-2 gap-2">
-          <!-- 영상 타입 -->
-          <div>
-            <label class="text-[10px] font-semibold text-ink-soft mb-1 block">영상 타입</label>
-            <select x-model="topicVideoType" class="clay-input w-full px-2 py-1.5 text-[10px] text-ink-soft focus:outline-none">
-              <option value="all">전체</option>
-              <option value="short">쇼츠만 (≤60초)</option>
-              <option value="long">롱폼만 (>60초)</option>
-            </select>
-          </div>
-          <!-- 최소 조회수 -->
-          <div>
-            <label class="text-[10px] font-semibold text-ink-soft mb-1 block">최소 조회수</label>
-            <select x-model.number="topicMinViews" class="clay-input w-full px-2 py-1.5 text-[10px] text-ink-soft focus:outline-none">
-              <option value="0">제한없음</option>
-              <option value="10000">1만 이상</option>
-              <option value="100000">10만 이상</option>
-              <option value="1000000">100만 이상</option>
-            </select>
-          </div>
-          <!-- 채널 규모 -->
-          <div>
-            <label class="text-[10px] font-semibold text-ink-soft mb-1 block">채널 규모</label>
-            <select x-model="topicSubscriberTier" class="clay-input w-full px-2 py-1.5 text-[10px] text-ink-soft focus:outline-none">
-              <option value="all">전체</option>
-              <option value="small">소형 (10만 미만)</option>
-              <option value="mid">중형 (100만 미만)</option>
-              <option value="large">대형 (100만 이상)</option>
-            </select>
-          </div>
-          <!-- 정렬 기준 -->
-          <div>
-            <label class="text-[10px] font-semibold text-ink-soft mb-1 block">정렬 기준</label>
-            <select x-model="topicSortBy" class="clay-input w-full px-2 py-1.5 text-[10px] text-ink-soft focus:outline-none">
-              <option value="view_count">조회수 높은 순</option>
-              <option value="upload_date">최신 업로드 순</option>
-              <option value="engagement">참여율 높은 순</option>
-            </select>
-          </div>
-        </div>
-        <!-- 비교 주제 -->
+      <!-- 필터 3개 -->
+      <div class="grid grid-cols-3 gap-2">
         <div>
-          <label class="text-[10px] font-semibold text-ink-soft mb-1 block">비교 주제 <span class="text-ink-muted font-normal">(선택 — 두 주제 비교 분석)</span></label>
-          <input x-model="topicCompareTopic" placeholder="예: 드롭쉬핑, 쿠팡파트너스"
-            class="clay-input w-full text-[10px] px-3 py-2 text-ink" />
+          <label class="text-[10px] font-semibold text-ink-soft mb-1 block">구독자 이하</label>
+          <input type="number" x-model.number="topicMaxSubscriber" min="0" placeholder="예: 100000"
+            class="clay-input w-full px-2 py-1.5 text-[10px] text-ink focus:outline-none" />
+          <div class="text-[9px] text-ink-muted mt-0.5">0=제한없음</div>
         </div>
-        <!-- 필터 초기화 -->
-        <button @click="topicVideoType='all';topicMinViews=0;topicSubscriberTier='all';topicSortBy='view_count';topicCompareTopic=''"
-          class="text-[10px] text-ink-muted hover:text-pom underline">필터 초기화</button>
+        <div>
+          <label class="text-[10px] font-semibold text-ink-soft mb-1 block">최소 재생시간(분)</label>
+          <input type="number" x-model.number="topicMinDurationMin" min="0" placeholder="예: 20"
+            class="clay-input w-full px-2 py-1.5 text-[10px] text-ink focus:outline-none" />
+          <div class="text-[9px] text-ink-muted mt-0.5">0=제한없음</div>
+        </div>
+        <div>
+          <label class="text-[10px] font-semibold text-ink-soft mb-1 block">업로드일 (일 전)</label>
+          <input type="number" x-model.number="topicDays" min="0" placeholder="0=오늘"
+            class="clay-input w-full px-2 py-1.5 text-[10px] text-ink focus:outline-none" />
+          <div class="text-[9px] text-ink-muted mt-0.5">0=오늘 · 7=최근7일</div>
+        </div>
+      </div>
+
+      <!-- 정렬 + 비교 -->
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="text-[10px] font-semibold text-ink-soft mb-1 block">정렬 기준</label>
+          <select x-model="topicSortBy" class="clay-input w-full px-2 py-1.5 text-[10px] text-ink-soft focus:outline-none">
+            <option value="view_count">조회수 높은 순</option>
+            <option value="upload_date">최신 업로드 순</option>
+            <option value="engagement">참여율 높은 순</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-[10px] font-semibold text-ink-soft mb-1 block">비교 주제 <span class="text-ink-muted font-normal">(선택)</span></label>
+          <input x-model="topicCompareTopic" placeholder="예: 드롭쉬핑"
+            class="clay-input w-full text-[10px] px-2 py-1.5 text-ink" />
+        </div>
       </div>
     </div>
 
@@ -804,25 +685,34 @@
             x-text="'YouTube 검색 결과 · ' + (topicResult.filters?.sort_by==='upload_date' ? '최신순' : topicResult.filters?.sort_by==='engagement' ? '참여율순' : '조회수순') + ' · ' + topicResult.video_count + '개'"></div>
           <template x-for="(v,i) in (topicResult.videos || [])" :key="v.video_id">
             <a :href="v.url" target="_blank"
-              class="clay-card-sm flex items-center gap-2.5 p-2.5 cursor-pointer hover:shadow-md transition-shadow">
-              <span class="text-[10px] text-ink-muted w-5 text-right shrink-0" x-text="i+1"></span>
-              <div class="relative shrink-0">
-                <img :src="v.thumbnail"
-                  :class="v.is_short ? 'w-8 h-[42px]' : 'w-16 h-[42px]'"
-                  class="object-cover rounded-lg bg-oat-light" loading="lazy" />
-                <span x-show="v.is_short"
-                  class="absolute bottom-0.5 left-0 right-0 text-center text-[8px] shorts-badge rounded-b-lg leading-4">Shorts</span>
-              </div>
-              <div class="flex-1 min-w-0">
-                <div class="text-xs text-ink font-medium line-clamp-2 leading-snug" x-text="v.title"></div>
-                <div class="flex items-center gap-1.5 text-[10px] text-ink-muted mt-0.5">
-                  <span class="truncate max-w-[100px]" x-text="v.channel"></span>
-                  <span x-text="v.upload_date?.slice(0,10)"></span>
+              class="clay-card-sm px-3 py-2.5 block hover:border-matcha/40 transition-colors">
+              <div class="flex items-center gap-2.5">
+                <span class="text-[10px] text-ink-muted w-5 text-right shrink-0" x-text="i+1"></span>
+                <div class="relative shrink-0">
+                  <img :src="v.thumbnail"
+                    :class="v.is_short ? 'w-[36px] h-[48px]' : 'w-[72px] h-[40px]'"
+                    class="object-cover rounded bg-oat-light" loading="lazy" />
+                  <span x-show="v.is_short"
+                    class="absolute bottom-0 left-0 right-0 text-center text-[7px] shorts-badge rounded-b leading-[14px]">Shorts</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="text-xs text-ink font-semibold line-clamp-2 leading-snug" x-text="v.title"></div>
+                  <div class="flex items-center gap-2 mt-0.5">
+                    <span class="text-[10px] text-ink-muted truncate" x-text="v.channel"></span>
+                    <span class="text-[9px] text-ink-muted shrink-0" x-text="v.upload_date?.slice(0,10)"></span>
+                  </div>
+                </div>
+                <div class="shrink-0 text-right">
+                  <div class="text-[11px] font-bold text-ink-soft" x-text="fmt(v.view_count)" style="font-family:'Space Mono',monospace"></div>
+                  <div class="text-[9px] text-ink-muted" x-text="formatDuration(v.duration)"></div>
                 </div>
               </div>
-              <div class="text-right shrink-0 text-[10px]">
-                <div class="text-ink font-bold" x-text="fmt(v.view_count)"></div>
-                <div class="text-ink-muted" x-text="fmt(v.like_count||0) + ' 좋아요'"></div>
+              <!-- KPI 한 줄 -->
+              <div class="flex items-center gap-x-3 mt-1.5 pl-[30px] flex-wrap text-[11px]" style="font-family:'Space Mono',monospace">
+                <span><span class="text-ink-muted text-[9px]">조회</span> <span class="font-bold text-ink" x-text="fmt(v.view_count)"></span></span>
+                <span x-show="v.subscriber_count"><span class="text-ink-muted text-[9px]">구독</span> <span class="font-bold text-ink-soft" x-text="fmt(v.subscriber_count)"></span></span>
+                <span x-show="v.like_count"><span class="text-ink-muted text-[9px]">좋아요</span> <span class="font-bold text-ink-soft" x-text="fmt(v.like_count)"></span></span>
+                <span x-show="v.comment_count"><span class="text-ink-muted text-[9px]">댓글</span> <span class="font-bold text-ink-soft" x-text="fmt(v.comment_count)"></span></span>
               </div>
             </a>
           </template>
@@ -881,121 +771,6 @@
     </template>
   </div>
 
-  <!-- 큐레이션 탭 — 신뢰도 필터 + 카테고리별 20개 -->
-  <div x-show="activeTab==='curated'" x-cloak class="fade-in space-y-3">
-
-    <!-- 컨트롤 -->
-    <div class="clay-card p-3 space-y-2">
-      <div class="flex items-center gap-2 flex-wrap">
-        <div class="flex items-center gap-1.5 text-[10px] text-ink-muted">
-          <span class="font-semibold">기간</span>
-          <select x-model.number="curatedPeriod" class="clay-input px-1.5 py-1 text-[10px] text-ink-soft focus:outline-none" style="border-radius:8px">
-            <option value="1">1일</option>
-            <option value="3">3일</option>
-            <option value="7">7일</option>
-            <option value="14">14일</option>
-          </select>
-        </div>
-        <div class="flex items-center gap-1.5 text-[10px] text-ink-muted">
-          <span class="font-semibold">신뢰도</span>
-          <select x-model.number="curatedMinTrust" class="clay-input px-1.5 py-1 text-[10px] text-ink-soft focus:outline-none" style="border-radius:8px">
-            <option value="40">느슨하게 (40+)</option>
-            <option value="60">기본 (60+)</option>
-            <option value="75">엄격하게 (75+)</option>
-            <option value="90">매우 엄격 (90+)</option>
-          </select>
-        </div>
-        <button @click="loadCurated()" :disabled="curatedLoading"
-          class="btn-matcha btn-clay text-[10px] px-3 py-1.5 font-semibold flex items-center gap-1.5 ml-auto">
-          <span x-show="curatedLoading" class="w-3 h-3 border-2 border-white/40 border-t-white rounded-full spin"></span>
-          <span x-text="curatedLoading ? '필터링중...' : '🔍 큐레이션'"></span>
-        </button>
-      </div>
-      <!-- 필터 결과 요약 -->
-      <template x-if="curatedData">
-        <div class="flex gap-3 text-[10px] text-ink-muted pt-1 border-t border-oat">
-          <span>전체 <span class="font-bold text-ink" x-text="curatedData.total_before_filter"></span>개</span>
-          <span class="text-pom">사기 의심 제거 <span class="font-bold" x-text="curatedData.filtered_out"></span>개</span>
-          <span class="text-matcha">최종 <span class="font-bold" x-text="curatedData.total_after_filter"></span>개</span>
-        </div>
-      </template>
-    </div>
-
-    <!-- 빈 상태 -->
-    <div x-show="!curatedData && !curatedLoading" class="clay-card p-8 text-center">
-      <div class="text-3xl mb-2">✅</div>
-      <div class="text-sm font-bold text-ink mb-1">뷰봇 필터링 + 카테고리별 큐레이션</div>
-      <div class="text-[11px] text-ink-muted mb-4">
-        사기·뷰봇 영상을 제거하고<br>카테고리별 신뢰도 높은 20개 영상만 표시
-      </div>
-      <button @click="loadCurated()" class="btn-matcha btn-clay text-xs px-4 py-2 font-bold">시작하기</button>
-    </div>
-
-    <!-- 카테고리별 결과 -->
-    <template x-if="curatedData && curatedData.categories.length > 0">
-      <div class="space-y-2">
-        <!-- 카테고리 탭 버튼 -->
-        <div class="flex gap-1.5 overflow-x-auto hide-scrollbar pb-1">
-          <template x-for="cat in curatedData.categories" :key="cat.category_id">
-            <button @click="curatedOpenCat = cat.category_id"
-              :class="curatedOpenCat === cat.category_id
-                ? 'bg-ink text-white border-ink'
-                : 'bg-oat-light border-oat text-ink-muted hover:bg-oat-light'"
-              class="border text-[10px] px-3 py-1.5 rounded-full whitespace-nowrap font-semibold transition shrink-0">
-              <span x-text="cat.category_name"></span>
-              <span class="opacity-60 ml-1" x-text="cat.showing + '개'"></span>
-            </button>
-          </template>
-        </div>
-
-        <!-- 선택된 카테고리 영상 목록 -->
-        <template x-for="cat in curatedData.categories" :key="'list-' + cat.category_id">
-          <div x-show="curatedOpenCat === cat.category_id" class="space-y-1.5">
-            <div class="flex items-center justify-between px-1">
-              <span class="text-[10px] text-ink-muted"
-                x-text="cat.category_name + ' · ' + curatedData.date + ' · 신뢰도 ' + curatedData.min_trust_score + '점+ 필터'"></span>
-              <span class="text-[10px] text-matcha font-semibold" x-text="cat.showing + '개 표시'"></span>
-            </div>
-            <template x-for="(v, i) in cat.videos" :key="v.video_id">
-              <div @click="openDetail(v)"
-                class="clay-card-sm flex items-center gap-2.5 p-2.5 cursor-pointer hover:shadow-md transition-shadow">
-                <span class="text-[10px] text-ink-muted w-5 text-right shrink-0" x-text="i+1"></span>
-                <div class="relative shrink-0">
-                  <img :src="v.thumbnail"
-                    :class="v.is_short ? 'w-8 h-[42px]' : 'w-16 h-[42px]'"
-                    class="object-cover rounded-lg bg-oat-light" loading="lazy" />
-                  <span x-show="v.is_short"
-                    class="absolute bottom-0.5 left-0 right-0 text-center text-[8px] bg-pom/80 text-white rounded-b-lg leading-4">Shorts</span>
-                </div>
-                <div class="flex-1 min-w-0">
-                  <div class="text-xs text-ink font-medium line-clamp-2 leading-snug" x-text="v.title"></div>
-                  <div class="flex items-center gap-1.5 mt-0.5">
-                    <span class="text-[10px] text-ink-muted truncate max-w-[100px]" x-text="v.channel"></span>
-                    <!-- 신뢰도 배지 -->
-                    <span class="text-[9px] px-1.5 py-0.5 rounded-full font-bold shrink-0"
-                      :class="(v.trust_score||100) >= 80 ? 'bg-matcha/20 text-matcha' : (v.trust_score||100) >= 60 ? 'bg-lemon/20 text-lemon' : 'bg-pom/10 text-pom'"
-                      x-text="'신뢰 ' + (v.trust_score||'?')"></span>
-                  </div>
-                </div>
-                <div class="text-right shrink-0 text-[10px] space-y-0.5">
-                  <div class="text-ink font-bold" x-text="fmt(v.view_count)"></div>
-                  <div class="text-pom font-semibold" x-text="'⚡' + (v.spike_score||0).toFixed(0)"></div>
-                </div>
-              </div>
-            </template>
-          </div>
-        </template>
-      </div>
-    </template>
-
-    <!-- 데이터 없음 -->
-    <template x-if="curatedData && curatedData.categories.length === 0">
-      <div class="clay-card p-6 text-center text-[11px] text-ink-muted">
-        조건에 맞는 영상이 없습니다.<br>
-        신뢰도 기준을 낮추거나 기간을 늘려보세요.
-      </div>
-    </template>
-  </div>
 
   <!-- 부업 기회 분석 탭 -->
   <div x-show="activeTab==='opportunity'" x-cloak class="fade-in space-y-3">
@@ -1061,27 +836,41 @@
             </div>
 
             <!-- 지표 -->
-            <div class="grid grid-cols-3 gap-2 text-center">
+            <div class="grid grid-cols-4 gap-1.5 text-center">
               <div class="clay-card-sm p-2">
-                <div class="text-[9px] text-ink-muted">추정 CPM</div>
+                <div class="text-[9px] text-ink-muted">CPM</div>
                 <div class="text-xs font-bold text-ink" x-text="'$' + item.estimated_cpm.toFixed(1)"></div>
+                <div class="text-[8px] text-ink-muted mt-0.5" x-text="(item.score_breakdown?.cpm||0).toFixed(0) + '/30점'"></div>
               </div>
               <div class="clay-card-sm p-2">
-                <div class="text-[9px] text-ink-muted">평균 조회수</div>
-                <div class="text-xs font-bold text-ink" x-text="fmt(item.avg_views)"></div>
+                <div class="text-[9px] text-ink-muted">성장성</div>
+                <div class="text-xs font-bold text-pom" x-text="(item.score_breakdown?.growth||0).toFixed(0) + 'pt'"></div>
+                <div class="text-[8px] text-ink-muted mt-0.5">/30점</div>
               </div>
               <div class="clay-card-sm p-2">
-                <div class="text-[9px] text-ink-muted">진입 난이도</div>
+                <div class="text-[9px] text-ink-muted">진입</div>
                 <div class="text-xs font-bold"
                   :class="item.entry_difficulty==='쉬움' ? 'text-matcha' : item.entry_difficulty==='어려움' ? 'text-pom' : 'text-lemon'"
                   x-text="item.entry_difficulty"></div>
+                <div class="text-[8px] text-ink-muted mt-0.5" x-text="(item.score_breakdown?.entry||0).toFixed(0) + '/20점'"></div>
+              </div>
+              <div class="clay-card-sm p-2">
+                <div class="text-[9px] text-ink-muted">참여율</div>
+                <div class="text-xs font-bold text-matcha" x-text="fmt(item.avg_views)"></div>
+                <div class="text-[8px] text-ink-muted mt-0.5" x-text="(item.score_breakdown?.engagement||0).toFixed(0) + '/20점'"></div>
               </div>
             </div>
 
-            <!-- 소형채널 비율 -->
-            <div class="text-[10px] text-ink-muted">
-              소형 채널(10만↓) 비율: <span class="font-semibold text-ink" x-text="item.small_channel_ratio + '%'"></span>
-              · 분석 영상 <span x-text="item.video_count + '개'"></span>
+            <!-- 부업 기회 이유 -->
+            <div x-show="item.reasons && item.reasons.length" class="space-y-1">
+              <div class="text-[9px] font-semibold text-ink-muted uppercase tracking-wide">이 카테고리가 부업에 유리한 이유</div>
+              <template x-for="(reason, ri) in (item.reasons || [])" :key="ri">
+                <div class="flex items-start gap-1.5 text-[10px]">
+                  <span :class="ri===0 ? 'text-lemon' : ri===1 ? 'text-pom' : ri===2 ? 'text-matcha' : 'text-ube'"
+                    class="shrink-0 font-bold" x-text="ri===0?'💰':ri===1?'📈':ri===2?'🚪':'💬'"></span>
+                  <span class="text-ink-soft leading-snug" x-text="reason"></span>
+                </div>
+              </template>
             </div>
 
             <!-- 상위 영상 -->
@@ -1216,48 +1005,6 @@
     </template>
   </div>
 
-  <!-- ⑩ 통계 차트 -->
-  <div x-show="activeTab==='stats'" x-cloak class="fade-in space-y-3">
-    <div class="clay-card p-3">
-      <div class="text-xs font-bold text-ink mb-2">카테고리 분포</div>
-      <canvas id="categoryChart" height="200"></canvas>
-      <div class="mt-2 space-y-1.5">
-        <template x-for="c in categories.slice(0,6)" :key="c.id">
-          <div class="flex items-center gap-2 text-xs">
-            <span class="text-ink-soft w-16 truncate" x-text="c.name"></span>
-            <div class="flex-1 h-1.5 bg-oat-light rounded-full overflow-hidden border border-oat">
-              <div class="h-full bg-matcha rounded-full" :style="`width:${Math.min(c.avg_engagement*10,100)}%`"></div>
-            </div>
-            <span class="text-ink-muted w-10 text-right" x-text="c.avg_engagement.toFixed(1)+'%'"></span>
-          </div>
-        </template>
-      </div>
-    </div>
-    <div class="clay-card p-3">
-      <div class="text-xs font-bold text-ink mb-2">급등 원인 분포</div>
-      <canvas id="reasonChart" height="160"></canvas>
-    </div>
-    <div class="clay-card p-3">
-      <div class="text-xs font-bold text-ink mb-2">채널 TOP 10</div>
-      <div class="space-y-2">
-        <template x-for="(ch,i) in topChannels" :key="i">
-          <div class="flex items-center gap-2">
-            <span class="text-[10px] text-ink-muted w-4 text-right" x-text="i+1"></span>
-            <div class="flex-1">
-              <div class="flex justify-between text-xs mb-0.5">
-                <span class="text-ink-soft truncate" x-text="ch.name"></span>
-                <span class="text-ink-muted ml-1 shrink-0" x-text="ch.count+'개'"></span>
-              </div>
-              <div class="h-1.5 bg-oat-light rounded-full overflow-hidden border border-oat">
-                <div class="h-full bg-slushie rounded-full"
-                  :style="`width:${(ch.count/topChannels[0].count*100).toFixed(0)}%`"></div>
-              </div>
-            </div>
-          </div>
-        </template>
-      </div>
-    </div>
-  </div>
 
   <!-- ⑪ 관리자 패널 -->
   <div x-show="activeTab==='admin'" x-cloak class="fade-in space-y-3">
@@ -1348,8 +1095,6 @@
     </div>
 
   </div>
-
-</main>
 
 <!-- ── 지표 가이드 모달 ──────────────────────────────────────── -->
 <div x-show="showGuide" x-cloak @click.self="showGuide=false"
@@ -1593,10 +1338,142 @@
   </div>
 </div>
 
-<!-- ── 영상 상세 모달 ────────────────────────────────────────── -->
+</div><!-- end 왼쪽 컬럼 -->
+
+<!-- ── 오른쪽: 상세 패널 (md 이상에서만 표시) ──────────────────── -->
+<div class="hidden md:block w-[340px] shrink-0 sticky top-0 h-screen overflow-y-auto thin-scroll border-l border-oat/40">
+  <!-- 미선택 상태 -->
+  <div x-show="!detailVideo" class="h-full flex flex-col items-center justify-center gap-3 text-center px-6">
+    <div class="text-4xl opacity-20">▶</div>
+    <div class="text-sm text-ink-muted">영상을 선택하면<br>상세 정보가 표시됩니다</div>
+  </div>
+  <!-- 선택된 영상 상세 -->
+  <div x-show="detailVideo" x-cloak class="p-4 fade-in">
+    <template x-if="detailVideo">
+      <div class="space-y-3">
+        <!-- 헤더: 썸네일 + 제목 -->
+        <div class="flex gap-3">
+          <img :src="detailVideo.thumbnail"
+            class="w-28 h-[70px] object-cover rounded-xl shrink-0 bg-oat-light border border-oat" />
+          <div class="flex-1 min-w-0">
+            <a :href="detailVideo.url" target="_blank"
+              class="text-sm text-ink font-bold leading-snug hover:text-matcha transition line-clamp-3"
+              x-text="detailVideo.title"></a>
+            <div x-show="detailVideo.title_ko"
+              class="text-xs text-slushie/80 mt-0.5 leading-snug line-clamp-2"
+              x-text="'→ ' + detailVideo.title_ko"></div>
+            <div class="text-xs text-ink-muted mt-1 truncate" x-text="detailVideo.channel"></div>
+            <div class="text-[10px] text-ink-muted" x-text="detailVideo.category"></div>
+          </div>
+        </div>
+        <!-- 급등 원인 태그 -->
+        <div class="flex flex-wrap gap-1">
+          <template x-for="r in (detailVideo.spike_reasons||[])">
+            <span class="text-xs bg-oat-light text-ink-soft px-2 py-0.5 rounded-full border border-oat font-medium"
+              x-text="r.label"></span>
+          </template>
+        </div>
+        <!-- 지표 그리드 -->
+        <div class="grid grid-cols-3 gap-1.5">
+          <template x-for="m in detailMetrics(detailVideo)">
+            <div class="bg-oat-light rounded-xl p-2.5 text-center border border-oat">
+              <div class="text-[10px] text-ink-muted mb-0.5" x-text="m.label"></div>
+              <div class="text-xs font-extrabold" :class="m.color" x-text="m.value"
+                style="font-family:'Space Mono',monospace"></div>
+            </div>
+          </template>
+        </div>
+        <!-- 모방 포인트 -->
+        <div class="bg-[#081a12] rounded-xl p-3 text-xs border border-matcha/20">
+          <div class="text-[10px] text-matcha font-bold mb-1.5">📋 모방 포인트</div>
+          <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-ink-soft">
+            <div><span class="text-ink-muted">제목 </span><span x-text="detailVideo.title.length+'자'"></span></div>
+            <div><span class="text-ink-muted">길이 </span><span x-text="formatDuration(detailVideo.duration)"></span></div>
+            <div><span class="text-ink-muted">업로드 </span><span x-text="detailVideo.publish_date?detailVideo.publish_date.split('T')[0]:'-'"></span></div>
+            <div><span class="text-ink-muted">바이럴 </span><span class="text-pom font-bold" x-text="detailVideo.viral_coefficient?detailVideo.viral_coefficient.toFixed(1)+'x':'-'"></span></div>
+          </div>
+        </div>
+        <!-- AI 분석 버튼 -->
+        <div x-show="!analysisResult&&!analyzing">
+          <button @click="analyzeVideo(detailVideo.video_id)"
+            class="btn-clay w-full text-white text-xs py-3 rounded-2xl flex items-center justify-center gap-2 font-bold"
+            style="background:linear-gradient(135deg,#43089f,#3b0764);border:2px solid #2d0650">
+            🤖 AI 분석 — 왜 떴는지 + 모방 전략
+          </button>
+        </div>
+        <!-- 분석 중 -->
+        <div x-show="analyzing" x-cloak class="text-center py-8">
+          <div class="w-8 h-8 border-2 border-ube/20 border-t-ube rounded-full spin mx-auto mb-2"></div>
+          <div class="text-xs text-ink-muted">AI 분석 중… 10-20초</div>
+        </div>
+        <!-- 분석 결과 -->
+        <div x-show="analysisResult&&!analyzing" x-cloak class="space-y-2">
+          <div class="bg-[#140f1f] border border-ube/30 rounded-xl p-3">
+            <div class="text-[10px] text-ube font-bold mb-1">💡 핵심 가치ㅈ주ok"></div>
+          </div>
+          <div class="bg-oat-light rounded-xl p-3 border border-oat">
+            <div class="text-[10px] text-pom font-bold mb-1">🚀 왜 급상승했나</div>
+            <div class="text-xs text-ink-soft leading-relaxed" x-text="analysisResult.why_viral"></div>
+          </div>
+          <div class="bg-oat-light rounded-xl p-3 border border-oat">
+            <div class="text-[10px] text-[#0891b2] font-bold mb-1">📋 영상 요약</div>
+            <div class="text-xs text-ink-soft leading-relaxed" x-text="analysisResult.summary"></div>
+          </div>
+          <div x-show="analysisResult.copy_guide" class="bg-[#081a12] rounded-xl p-3 border border-matcha/20">
+            <div class="text-[10px] text-matcha font-bold mb-2">🎯 모방 가이드</div>
+            <div class="space-y-1.5 text-xs text-ink-soft">
+              <div><span class="text-ink-muted">제목 패턴 </span><span x-text="analysisResult.copy_guide?.title_pattern"></span></div>
+              <div><span class="text-ink-muted">구조 </span><span x-text="analysisResult.copy_guide?.content_structure"></span></div>
+              <div><span class="text-ink-muted">타겟 </span><span x-text="analysisResult.copy_guide?.target_audience"></span></div>
+              <div><span class="text-ink-muted">시기 </span><span x-text="analysisResult.copy_guide?.optimal_timing"></span></div>
+              <div x-show="(analysisResult.copy_guide?.similar_topics||[]).length">
+                <span class="text-ink-muted">연관 주제 </span>
+                <span class="text-matcha font-medium" x-text="(analysisResult.copy_guide?.similar_topics||[]).join(' · ')"></span>
+              </div>
+            </div>
+          </div>
+          <div x-show="(analysisResult.key_insights||[]).length" class="bg-[#1a1608] rounded-xl p-3 border border-lemon/40">
+            <div class="text-[10px] text-lemon font-bold mb-1.5">⚡ 핵심 인사이트</div>
+            <ul class="space-y-1.5">
+              <template x-for="(ins,i) in (analysisResult.key_insights||[])">
+                <li class="flex gap-1.5 text-xs text-ink-soft">
+                  <span class="text-lemon shrink-0 font-bold" x-text="(i+1)+'.'"></span>
+                  <span x-text="ins"></span>
+                </li>
+              </template>
+            </ul>
+          </div>
+          <div x-show="(analysisResult.creator_tips||[]).length" class="bg-oat-light rounded-xl p-3 border border-oat">
+            <div class="text-[10px] text-[#0891b2] font-bold mb-1.5">✅ 제작 시 필수 요소</div>
+            <ul class="space-y-1">
+              <template x-for="tip in (analysisResult.creator_tips||[])">
+                <li class="flex gap-1.5 text-xs text-ink-soft">
+                  <span class="text-matcha shrink-0">·</span><span x-text="tip"></span>
+                </li>
+              </template>
+            </ul>
+          </div>
+          <div x-show="analysisResult.caution" class="bg-[#1f1010] border border-pom/40 rounded-xl p-3">
+            <div class="text-[10px] text-pom font-bold mb-1">⚠️ 주의</div>
+            <div class="text-xs text-ink-soft" x-text="analysisResult.caution"></div>
+          </div>
+          <div x-show="analysisResult.error"
+            class="bg-[#1f1010] border border-pom/50 rounded-xl p-3 text-xs text-pom"
+            x-text="analysisResult.error"></div>
+          <button @click="analysisResult=null"
+            class="w-full text-[10px] text-ink-muted hover:text-ink py-1 transition font-medium">분석 초기화</button>
+        </div>
+      </div>
+    </template>
+  </div>
+</div><!-- end 오른쪽 패널 -->
+
+</main><!-- end 메인 콘텐츠 -->
+
+<!-- ── 영상 상세 모달 (모바일 전용 — md 이상에서는 우측 패널 사용) ── -->
 <div x-show="detailVideo" x-cloak @click.self="closeDetail()"
-  class="fixed inset-0 z-50 modal-backdrop flex items-end md:items-center justify-center">
-  <div class="bg-[#0f0f0f] border border-oat rounded-t-xl md:rounded-xl w-full md:max-w-lg max-h-[92vh] overflow-y-auto thin-scroll fade-in"
+  class="fixed inset-0 z-50 modal-backdrop flex items-end justify-center md:hidden">
+  <div class="bg-[#0f0f0f] border border-oat rounded-t-xl w-full max-h-[92vh] overflow-y-auto thin-scroll fade-in"
     style="box-shadow:0 -4px 32px rgba(0,0,0,.12)"
     @click.stop>
     <template x-if="detailVideo">
@@ -1743,14 +1620,11 @@ function app() {
       {key:'brief',       icon:'💡', label:'브리프'},
       {key:'topic',       icon:'🎯', label:'심층분석'},
       {key:'opportunity', icon:'💰', label:'부업기회'},
-      {key:'curated',     icon:'✅', label:'큐레이션'},
       {key:'trending',    icon:'📊', label:'급상승'},
       {key:'spikes',      icon:'🚀', label:'스파이크'},
       {key:'copyable',    icon:'📋', label:'모방가능'},
-      {key:'keywords',    icon:'🔑', label:'키워드'},
       {key:'signals',     icon:'🌍', label:'선행감지'},
       {key:'compare',     icon:'📅', label:'비교'},
-      {key:'stats',       icon:'📈', label:'통계'},
     ],
     searchQuery: '', sortKey: 'rank',
     excludeMusic: true, selectedCategory: 0, videoType: 'all',
@@ -1767,12 +1641,12 @@ function app() {
     analysisResult: null, analyzing: false,
     charts: {},
     briefData: null, briefLoading: false, briefError: null, briefOpenCluster: null,
-    topicInput: '', topicRegion: 'KR', topicDays: 30,
+    topicInput: '', topicRegion: 'KR', topicDays: 0,
     topicResult: null, topicLoading: false, topicError: null,
     topicSection: 'overview',
-    // 심층분석 고급 필터
-    topicVideoType: 'all', topicMinViews: 0, topicSubscriberTier: 'all',
-    topicSortBy: 'view_count', topicCompareTopic: '', topicShowAdvanced: false,
+    // 심층분석 필터
+    topicMaxSubscriber: 0, topicMinDurationMin: 0,
+    topicSortBy: 'view_count', topicCompareTopic: '',
     // 부업 기회 분석
     opportunityData: null, opportunityLoading: false, opportunityDays: 7,
     // 큐레이션
@@ -1876,9 +1750,8 @@ function app() {
             region: this.topicRegion,
             days: this.topicDays,
             limit: 30,
-            video_type: this.topicVideoType,
-            min_views: this.topicMinViews,
-            max_subscriber_tier: this.topicSubscriberTier,
+            max_subscriber: this.topicMaxSubscriber,
+            min_duration_minutes: this.topicMinDurationMin,
             sort_by: this.topicSortBy,
             compare_topic: this.topicCompareTopic,
           })
@@ -2097,7 +1970,13 @@ function app() {
       })
     },
 
-    openDetail(v) { this.detailVideo=v; this.analysisResult=null; this.analyzing=false },
+    openDetail(v) {
+      if (this.detailVideo && this.detailVideo.video_id === v.video_id) {
+        this.detailVideo = null; // 같은 영상 클릭 시 토글
+      } else {
+        this.detailVideo = v; this.analysisResult = null; this.analyzing = false;
+      }
+    },
     closeDetail() { this.detailVideo=null },
 
     detailMetrics(v) {

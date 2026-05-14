@@ -117,11 +117,10 @@ ANALYSIS_PROMPT = """당신은 YouTube 콘텐츠 전략 컨설턴트입니다.
 def analyze_topic(
     topic: str,
     region: str = "KR",
-    days: int = 30,
+    days: int = 1,
     search_limit: int = 30,
-    video_type: str = "all",
-    min_views: int = 0,
-    max_subscriber_tier: str = "all",
+    max_subscriber: int = 0,
+    min_duration_minutes: int = 0,
     sort_by: str = "view_count",
     compare_topic: str = "",
 ) -> dict[str, Any]:
@@ -143,10 +142,10 @@ def analyze_topic(
     from src.fetcher.yt_search import search_by_keyword
 
     filters = {
-        "video_type": video_type,
-        "min_views": min_views,
-        "max_subscriber_tier": max_subscriber_tier,
+        "max_subscriber": max_subscriber,
+        "min_duration_minutes": min_duration_minutes,
         "sort_by": sort_by,
+        "days": days,
     }
 
     # 1. YouTube 검색
@@ -158,7 +157,7 @@ def analyze_topic(
     )
 
     # 2. 필터 적용
-    videos = _apply_filters(videos, video_type, min_views, max_subscriber_tier)
+    videos = _apply_filters(videos, max_subscriber, min_duration_minutes)
     videos = _sort_videos(videos, sort_by)
 
     # 3. Gemini 심층 분석
@@ -184,7 +183,7 @@ def analyze_topic(
             limit=search_limit,
             published_within_days=days,
         )
-        compare_videos = _apply_filters(compare_videos, video_type, min_views, max_subscriber_tier)
+        compare_videos = _apply_filters(compare_videos, max_subscriber, min_duration_minutes)
         compare_videos = _sort_videos(compare_videos, sort_by)
         result["compare"] = {
             "topic":       compare_topic,
@@ -202,36 +201,24 @@ def analyze_topic(
 
 def _apply_filters(
     videos: list[dict],
-    video_type: str,
-    min_views: int,
-    max_subscriber_tier: str,
+    max_subscriber: int = 0,
+    min_duration_minutes: int = 0,
 ) -> list[dict]:
     result = []
+    min_secs = min_duration_minutes * 60
     for v in videos:
-        # 영상 타입 필터
-        if video_type != "all":
-            secs = _duration_seconds(v.get("duration", ""))
-            is_short = 0 < secs <= 60
-            if video_type == "short" and not is_short:
-                continue
-            if video_type == "long" and is_short:
-                continue
-
-        # 최소 조회수 필터
-        if min_views > 0 and (v.get("view_count") or 0) < min_views:
+        secs = _duration_seconds(v.get("duration", ""))
+        # 쇼츠 항상 제외 (60초 이하)
+        if 0 < secs <= 60:
             continue
-
-        # 채널 구독자 규모 필터
-        if max_subscriber_tier != "all":
+        # 최소 재생시간 필터
+        if min_secs > 0 and secs < min_secs:
+            continue
+        # 최대 구독자수 필터
+        if max_subscriber > 0:
             subs = v.get("subscriber_count") or v.get("channel_subscriber_count") or 0
-            if max_subscriber_tier == "small" and subs >= 100_000:
+            if subs > max_subscriber:
                 continue
-            elif max_subscriber_tier == "mid" and subs >= 1_000_000:
-                continue
-            # "large" = 100만 이상만 포함
-            elif max_subscriber_tier == "large" and subs < 1_000_000:
-                continue
-
         result.append(v)
     return result
 
@@ -252,20 +239,16 @@ def _sort_videos(videos: list[dict], sort_by: str) -> list[dict]:
 
 def _build_filter_context(filters: dict) -> str:
     parts = []
-    vt = filters.get("video_type", "all")
-    if vt == "short":
-        parts.append("쇼츠(60초 이하)만 포함")
-    elif vt == "long":
-        parts.append("롱폼(60초 초과)만 포함")
+    days = filters.get("days", 1)
+    parts.append(f"최근 {days}일 업로드")
 
-    mv = filters.get("min_views", 0)
-    if mv > 0:
-        parts.append(f"최소 조회수 {mv:,}회 이상")
+    ms = filters.get("max_subscriber", 0)
+    if ms > 0:
+        parts.append(f"구독자 {ms:,}명 이하")
 
-    tier = filters.get("max_subscriber_tier", "all")
-    tier_labels = {"small": "소형 채널(10만 미만)", "mid": "중형 채널(100만 미만)", "large": "대형 채널(100만 이상)"}
-    if tier in tier_labels:
-        parts.append(tier_labels[tier])
+    md = filters.get("min_duration_minutes", 0)
+    if md > 0:
+        parts.append(f"재생시간 {md}분 이상")
 
     sb = filters.get("sort_by", "view_count")
     sort_labels = {"view_count": "조회수 높은 순", "upload_date": "최신 업로드 순", "engagement": "참여율 높은 순"}
@@ -283,18 +266,19 @@ def _slim_videos(videos: list[dict]) -> list[dict]:
         duration = v.get("duration", "")
         secs = _duration_seconds(duration)
         result.append({
-            "video_id":    v.get("id", ""),
-            "url":         f"https://www.youtube.com/shorts/{v.get('id','')}" if 0 < secs <= 60 else f"https://www.youtube.com/watch?v={v.get('id','')}",
-            "title":       v.get("title", ""),
-            "channel":     v.get("channel", ""),
-            "view_count":  v.get("view_count") or 0,
-            "like_count":  v.get("like_count"),
-            "comment_count": v.get("comment_count"),
-            "duration":    duration,
+            "video_id":        v.get("id", ""),
+            "url":             f"https://www.youtube.com/shorts/{v.get('id','')}" if 0 < secs <= 60 else f"https://www.youtube.com/watch?v={v.get('id','')}",
+            "title":           v.get("title", ""),
+            "channel":         v.get("channel", ""),
+            "subscriber_count": v.get("subscriber_count") or v.get("channel_subscriber_count"),
+            "view_count":      v.get("view_count") or 0,
+            "like_count":      v.get("like_count"),
+            "comment_count":   v.get("comment_count"),
+            "duration":        duration,
             "duration_seconds": secs,
-            "is_short":    0 < secs <= 60,
-            "upload_date": v.get("upload_date", ""),
-            "thumbnail":   v.get("thumbnail", ""),
+            "is_short":        0 < secs <= 60,
+            "upload_date":     v.get("upload_date", ""),
+            "thumbnail":       v.get("thumbnail", ""),
         })
     return result
 

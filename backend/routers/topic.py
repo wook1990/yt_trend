@@ -13,14 +13,13 @@ router = APIRouter(prefix="/api/topic", tags=["topic"])
 class TopicRequest(BaseModel):
     topic: str
     region: str = "KR"
-    days: int = 30
+    days: int = 0           # 업로드일 기준: 0=오늘, 1=어제~오늘, 7=최근7일 (0이면 1로 처리)
     limit: int = 30
-    # 고급 필터
-    video_type: str = "all"           # "all" | "short" | "long"
-    min_views: int = 0                # 최소 조회수 (0=제한없음)
-    max_subscriber_tier: str = "all"  # "all" | "small"(<10만) | "mid"(<100만) | "large"(≥100만)
+    # 필터
+    max_subscriber: int = 0          # 최대 구독자수 (0=제한없음)
+    min_duration_minutes: int = 0    # 최소 재생시간(분) (0=제한없음)
     sort_by: str = "view_count"       # "view_count" | "upload_date" | "engagement"
-    compare_topic: str = ""           # 비교 주제 (비어있으면 단일 분석)
+    compare_topic: str = ""           # 비교 주제
 
 
 @router.post("/analyze", response_model=None)
@@ -45,9 +44,8 @@ def analyze_topic(req: TopicRequest) -> dict[str, Any]:
             region=req.region,
             days=req.days,
             search_limit=min(req.limit, 50),
-            video_type=req.video_type,
-            min_views=req.min_views,
-            max_subscriber_tier=req.max_subscriber_tier,
+            max_subscriber=req.max_subscriber,
+            min_duration_minutes=req.min_duration_minutes,
             sort_by=req.sort_by,
             compare_topic=req.compare_topic.strip(),
         )

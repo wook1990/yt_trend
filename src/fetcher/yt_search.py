@@ -41,21 +41,21 @@ def search_by_keyword(
         print("[yt_search] YOUTUBE_API_KEY가 설정되지 않았습니다.", file=sys.stderr)
         return []
 
-    published_after = (
-        datetime.now(timezone.utc) - timedelta(days=published_within_days)
-    ).strftime("%Y-%m-%dT%H:%M:%SZ")
-
     # Step 1 — 검색으로 video_id 목록 획득 (100 units)
     search_params: dict[str, Any] = {
-        "part":          "id",
-        "q":             keyword,
-        "regionCode":    region,
-        "type":          "video",
-        "order":         "viewCount",        # 조회수 높은 순
-        "publishedAfter": published_after,
-        "maxResults":    min(limit, 50),
-        "key":           key,
+        "part":       "id",
+        "q":          keyword,
+        "regionCode": region,
+        "type":       "video",
+        "order":      "viewCount",        # 조회수 높은 순
+        "maxResults": min(limit, 50),
+        "key":        key,
     }
+    if published_within_days > 0:
+        published_after = (
+            datetime.now(timezone.utc) - timedelta(days=published_within_days)
+        ).strftime("%Y-%m-%dT%H:%M:%SZ")
+        search_params["publishedAfter"] = published_after
     if region == "KR":
         search_params["relevanceLanguage"] = "ko"
 
